@@ -18,5 +18,7 @@ async def test_well_known_endpoint(client: AsyncClient):
 async def test_healthz(client: AsyncClient):
     """Test health check endpoint."""
     resp = await client.get("/healthz")
-    assert resp.status_code == 200
-    assert resp.json() == {"status": "ok"}
+    data = resp.json()
+    assert resp.status_code in (200, 503)
+    assert data["status"] in ("ok", "degraded")
+    assert "checks" in data

@@ -14,11 +14,12 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from clawhub_mirror.config import load_config
-from clawhub_mirror.database import create_tables, init_db
+from clawhub_mirror.database import create_tables, init_db, get_db
 from clawhub_mirror.models import create_fts_tables
 from clawhub_mirror.proxy import UpstreamProxy
 from clawhub_mirror.routers import admin, discovery, skills, whoami
-from clawhub_mirror.storage import create_storage
+from clawhub_mirror.storage import create_storage, StorageBackend
+from sqlalchemy import text
 
 logging.basicConfig(
     level=logging.INFO,
@@ -83,8 +84,47 @@ def create_app() -> FastAPI:
 
     @app.get("/healthz", tags=["health"])
     async def healthz() -> dict:
-        """Health check endpoint."""
-        return {"status": "ok"}
+        """Health check — verifies DB and storage connectivity."""
+        checks: dict[str, str] = {}
+
+        # DB check
+        try:
+            async for db in get_db():
+                await db.execute(text("SELECT 1"))
+                checks["database"] = "ok"
+        except Exception as e:
+            checks["database"] = f"error: {e}"
+
+        # Storage check
+        try:
+            storage: StorageBackend = app.state.storage
+            await storage.exists("__healthz__")
+            checks["storage"] = "ok"
+        except Exception as e:
+            checks["storage"] = f"error: {e}"
+
+        # Upstream reachability (non-blocking, best-effort)
+        try:
+            proxy: UpstreamProxy = app.state.proxy
+            if proxy and proxy._client:
+                resp = await proxy._client.head(
+                    f"{app.state.settings.upstream_url}/.well-known/clawhub.json",
+                    timeout=3.0,
+                )
+                checks["upstream"] = "ok" if resp.status_code < 500 else f"http {resp.status_code}"
+            else:
+                checks["upstream"] = "disabled"
+        except Exception:
+            checks["upstream"] = "unreachable"
+
+        all_ok = all(v == "ok" for k, v in checks.items() if k != "upstream")
+        status_code = 200 if all_ok else 503
+
+        from starlette.responses import JSONResponse
+        return JSONResponse(
+            content={"status": "ok" if all_ok else "degraded", "checks": checks},
+            status_code=status_code,
+        )
 
     return app
 
