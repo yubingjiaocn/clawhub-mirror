@@ -1,0 +1,36 @@
+# ClawHub Mirror Configuration
+# Copy to config.yaml and adjust as needed.
+# All values can also be set via environment variables with CLAWHUB_ prefix.
+# Example: server_port -> CLAWHUB_SERVER_PORT
+
+server:
+  host: "0.0.0.0"
+  port: 8080
+
+database:
+  # SQLite (default) - for production, switch to PostgreSQL:
+  # url: "postgresql+asyncpg://user:pass@localhost:5432/clawhub_mirror"
+  url: "sqlite+aiosqlite:///./clawhub_mirror.db"
+
+storage:
+  # "local" or "s3"
+  backend: "local"
+  local_path: "./skill_storage"
+
+  # S3 settings (used when backend: "s3")
+  s3_bucket: "clawhub-mirror"
+  s3_endpoint_url: "http://minio:9000"  # For MinIO; omit for real AWS S3
+  s3_access_key: ""
+  s3_secret_key: ""
+  s3_region: "us-east-1"
+
+upstream:
+  # Upstream ClawHub registry for proxy mode
+  url: "https://clawhub.ai"
+
+cors:
+  origins:
+    - "*"
+
+# Secret key for token generation (auto-generated if not set)
+# secret_key: "change-me-in-production"
