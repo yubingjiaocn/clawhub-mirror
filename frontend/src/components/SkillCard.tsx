@@ -1,8 +1,8 @@
 import { Link } from "react-router-dom";
-import type { Skill } from "../lib/api";
+import type { SkillListItem } from "../lib/api";
 
 type SkillCardProps = {
-  skill: Skill;
+  skill: SkillListItem;
   badge?: string | string[];
 };
 
@@ -21,8 +21,8 @@ export function SkillCard({ skill, badge }: SkillCardProps) {
       <p className="skill-card-summary">{skill.summary || "A fresh skill bundle."}</p>
       <div className="skill-card-footer">
         <div className="stat">
-          <span>★ {skill.stars}</span>
-          <span>↓ {skill.downloads}</span>
+          <span>&#9733; {skill.stats.stars}</span>
+          <span>&#8595; {skill.stats.downloads}</span>
         </div>
       </div>
     </Link>

@@ -6,15 +6,15 @@ import {
   getSkill,
   getVersions,
   downloadSkill,
-  type SkillDetail as SkillDetailType,
-  type SkillVersion,
+  type SkillDetailResponse,
+  type VersionInfo,
 } from "../lib/api";
 import { InstallCommand } from "../components/InstallCommand";
 
 export function SkillDetail() {
   const { slug } = useParams<{ slug: string }>();
-  const [skill, setSkill] = useState<SkillDetailType | null>(null);
-  const [versions, setVersions] = useState<SkillVersion[]>([]);
+  const [detail, setDetail] = useState<SkillDetailResponse | null>(null);
+  const [versions, setVersions] = useState<VersionInfo[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<"readme" | "versions">("readme");
@@ -27,7 +27,7 @@ export function SkillDetail() {
     Promise.all([getSkill(slug), getVersions(slug)])
       .then(([skillData, versionsData]) => {
         if (cancelled) return;
-        setSkill(skillData);
+        setDetail(skillData);
         setVersions(versionsData.versions);
       })
       .catch((err) => {
@@ -48,7 +48,7 @@ export function SkillDetail() {
     );
   }
 
-  if (error || !skill) {
+  if (error || !detail) {
     return (
       <main className="section">
         <div className="card">
@@ -57,6 +57,8 @@ export function SkillDetail() {
       </main>
     );
   }
+
+  const { skill, latestVersion, owner } = detail;
 
   return (
     <main className="section">
@@ -77,17 +79,21 @@ export function SkillDetail() {
                 {skill.summary}
               </p>
               <div className="stat">
-                by <strong>{skill.owner}</strong> &middot; &#9733; {skill.stars} &middot; &#8595; {skill.downloads}
+                by <strong>{owner.handle}</strong> &middot; &#9733; {skill.stats.stars} &middot; &#8595; {skill.stats.downloads}
               </div>
             </div>
             <div className="skill-hero-cta">
-              <div className="skill-version-pill">
-                <span className="skill-version-label">Latest</span>
-                <strong>v{skill.latestVersion}</strong>
-              </div>
-              <a className="btn btn-primary" href={downloadSkill(slug!, skill.latestVersion)}>
-                Download .zip
-              </a>
+              {latestVersion && (
+                <>
+                  <div className="skill-version-pill">
+                    <span className="skill-version-label">Latest</span>
+                    <strong>v{latestVersion.version}</strong>
+                  </div>
+                  <a className="btn btn-primary" href={downloadSkill(slug!, latestVersion.version)}>
+                    Download .zip
+                  </a>
+                </>
+              )}
             </div>
           </div>
         </div>
@@ -117,9 +123,9 @@ export function SkillDetail() {
           {activeTab === "readme" ? (
             <div className="tab-body">
               <div className="markdown">
-                {skill.readme ? (
+                {latestVersion?.changelog ? (
                   <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                    {skill.readme}
+                    {latestVersion.changelog}
                   </ReactMarkdown>
                 ) : (
                   <p style={{ color: "var(--ink-soft)" }}>No README available.</p>

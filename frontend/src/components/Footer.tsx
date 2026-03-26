@@ -6,7 +6,7 @@ export function Footer() {
         <div className="site-footer-row">
           <div className="site-footer-copy">
             ClawHub Mirror &middot; A self-hosted ClawHub instance &middot;{" "}
-            <a href="https://github.com/openclaw/clawhub" target="_blank" rel="noreferrer">Open source (MIT)</a>
+            <a href="https://github.com/anthropics/clawhub-mirror" target="_blank" rel="noreferrer">Open source (MIT)</a>
           </div>
         </div>
       </div>

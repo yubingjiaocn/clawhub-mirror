@@ -1,11 +1,11 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { searchSkills, type Skill } from "../lib/api";
-import { SkillCard } from "../components/SkillCard";
+import { searchSkills, type SearchResultItem } from "../lib/api";
+import { Link } from "react-router-dom";
 
 export function Search() {
   const [searchParams, setSearchParams] = useSearchParams();
-  const [skills, setSkills] = useState<Skill[]>([]);
+  const [results, setResults] = useState<SearchResultItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState(searchParams.get("q") || "");
 
@@ -19,15 +19,15 @@ export function Search() {
 
   const performSearch = async (query: string) => {
     if (!query.trim()) {
-      setSkills([]);
+      setResults([]);
       return;
     }
     try {
       setLoading(true);
-      const result = await searchSkills(query);
-      setSkills(result.skills);
+      const data = await searchSkills(query);
+      setResults(data.results);
     } catch {
-      setSkills([]);
+      setResults([]);
     } finally {
       setLoading(false);
     }
@@ -57,14 +57,22 @@ export function Search() {
 
       {loading ? (
         <span className="loading-indicator">Searching...</span>
-      ) : searchParams.get("q") && skills.length > 0 ? (
+      ) : searchParams.get("q") && results.length > 0 ? (
         <>
           <p className="section-subtitle">
-            Found {skills.length} {skills.length === 1 ? "skill" : "skills"}
+            Found {results.length} {results.length === 1 ? "skill" : "skills"}
           </p>
           <div className="grid">
-            {skills.map((skill) => (
-              <SkillCard key={skill.slug} skill={skill} />
+            {results.map((r) => (
+              <Link to={`/skills/${r.slug}`} key={r.slug} className="card skill-card">
+                <h3 className="skill-card-title">{r.displayName}</h3>
+                <p className="skill-card-summary">{r.summary || "A fresh skill bundle."}</p>
+                <div className="skill-card-footer">
+                  <div className="stat">
+                    {r.version && <span>v{r.version}</span>}
+                  </div>
+                </div>
+              </Link>
             ))}
           </div>
         </>

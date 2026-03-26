@@ -9,8 +9,9 @@ export function Publish() {
   const [form, setForm] = useState({
     slug: "",
     version: "",
-    displayName: "",
+    display_name: "",
     summary: "",
+    changelog: "",
     tags: "",
   });
 
@@ -58,7 +59,7 @@ export function Publish() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!file) { setError("Please select a file"); return; }
-    if (!form.slug || !form.version || !form.displayName) {
+    if (!form.slug || !form.version || !form.display_name) {
       setError("Please fill in all required fields");
       return;
     }
@@ -70,11 +71,10 @@ export function Publish() {
       data.append("file", file);
       data.append("slug", form.slug);
       data.append("version", form.version);
-      data.append("displayName", form.displayName);
+      data.append("display_name", form.display_name);
       if (form.summary) data.append("summary", form.summary);
-      if (form.tags) {
-        data.append("tags", JSON.stringify(form.tags.split(",").map((t) => t.trim()).filter(Boolean)));
-      }
+      if (form.changelog) data.append("changelog", form.changelog);
+      if (form.tags) data.append("tags", form.tags);
       await publishSkill(data);
       setSuccess(true);
       setTimeout(() => navigate(`/skills/${form.slug}`), 2000);
@@ -132,12 +132,16 @@ export function Publish() {
                   <input id="version" name="version" value={form.version} onChange={handleInput} className="form-input" placeholder="1.0.0" required />
                 </div>
                 <div className="upload-field" style={{ display: "grid", gap: 8 }}>
-                  <label htmlFor="displayName" className="form-label">Display Name *</label>
-                  <input id="displayName" name="displayName" value={form.displayName} onChange={handleInput} className="form-input" placeholder="My Awesome Skill" required />
+                  <label htmlFor="display_name" className="form-label">Display Name *</label>
+                  <input id="display_name" name="display_name" value={form.display_name} onChange={handleInput} className="form-input" placeholder="My Awesome Skill" required />
                 </div>
                 <div className="upload-field" style={{ display: "grid", gap: 8 }}>
                   <label htmlFor="summary" className="form-label">Summary</label>
                   <textarea id="summary" name="summary" value={form.summary} onChange={handleInput} className="form-input" placeholder="A brief description..." rows={3} />
+                </div>
+                <div className="upload-field" style={{ display: "grid", gap: 8 }}>
+                  <label htmlFor="changelog" className="form-label">Changelog</label>
+                  <textarea id="changelog" name="changelog" value={form.changelog} onChange={handleInput} className="form-input" placeholder="What changed in this version..." rows={3} />
                 </div>
                 <div className="upload-field" style={{ display: "grid", gap: 8 }}>
                   <label htmlFor="tags" className="form-label">Tags</label>

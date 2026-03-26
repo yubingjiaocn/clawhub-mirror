@@ -1,47 +1,38 @@
 import { useEffect, useState, useCallback } from "react";
-import { listSkills, type Skill } from "../lib/api";
+import { listSkills, type SkillListItem } from "../lib/api";
 import { SkillCard } from "../components/SkillCard";
 
-type SortOption = "newest" | "downloads" | "name";
-
 export function Skills() {
-  const [skills, setSkills] = useState<Skill[]>([]);
+  const [skills, setSkills] = useState<SkillListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
-  const [sortBy, setSortBy] = useState<SortOption>("downloads");
   const [cursor, setCursor] = useState<string | undefined>();
   const [hasMore, setHasMore] = useState(false);
 
   const fetchSkills = useCallback(async (reset: boolean) => {
     try {
       setLoading(true);
-      const sortMap: Record<SortOption, string> = {
-        newest: "createdAt",
-        downloads: "downloads",
-        name: "name",
-      };
       const result = await listSkills({
         limit: 12,
-        sort: sortMap[sortBy],
         cursor: reset ? undefined : cursor,
       });
       if (reset) {
-        setSkills(result.skills);
+        setSkills(result.items);
       } else {
-        setSkills((prev) => [...prev, ...result.skills]);
+        setSkills((prev) => [...prev, ...result.items]);
       }
-      setCursor(result.nextCursor);
+      setCursor(result.nextCursor ?? undefined);
       setHasMore(!!result.nextCursor);
     } catch {
       // Silently handle — empty state shown
     } finally {
       setLoading(false);
     }
-  }, [sortBy, cursor]);
+  }, [cursor]);
 
   useEffect(() => {
     fetchSkills(true);
-  }, [sortBy]);
+  }, []);
 
   const filtered = searchQuery
     ? skills.filter(
@@ -76,17 +67,6 @@ export function Skills() {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
-          </div>
-          <div className="skills-toolbar-row">
-            <select
-              className="skills-sort"
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value as SortOption)}
-            >
-              <option value="downloads">Downloads</option>
-              <option value="newest">Newest</option>
-              <option value="name">Name</option>
-            </select>
           </div>
         </div>
 

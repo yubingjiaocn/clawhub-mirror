@@ -7,22 +7,23 @@ import {
   createPolicy,
   deletePolicy,
   whoami,
-  type User,
-  type Policy,
+  type UserSchema,
+  type AdmissionPolicy,
 } from "../lib/api";
 
 export function Admin() {
-  const [users, setUsers] = useState<User[]>([]);
-  const [policies, setPolicies] = useState<Policy[]>([]);
+  const [users, setUsers] = useState<UserSchema[]>([]);
+  const [policies, setPolicies] = useState<AdmissionPolicy[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [checked, setChecked] = useState(false);
 
   const [newUsername, setNewUsername] = useState("");
-  const [newRole, setNewRole] = useState("user");
-  const [newPolicyKind, setNewPolicyKind] = useState("email");
-  const [newPolicyValue, setNewPolicyValue] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [newRole, setNewRole] = useState("reader");
+  const [newPolicySlug, setNewPolicySlug] = useState("");
+  const [newPolicyType, setNewPolicyType] = useState("allow");
 
   useEffect(() => {
     const token = localStorage.getItem("clawhub-token");
@@ -42,7 +43,7 @@ export function Admin() {
       })
       .then((result) => {
         if (result) {
-          setUsers(result[0].users);
+          setUsers(result[0]);
           setPolicies(result[1].policies);
         }
       })
@@ -56,43 +57,44 @@ export function Admin() {
   const handleCreateUser = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await createUser({ username: newUsername, role: newRole });
+      await createUser({ username: newUsername, password: newPassword, role: newRole });
       const result = await listUsers();
-      setUsers(result.users);
+      setUsers(result);
       setNewUsername("");
-      setNewRole("user");
+      setNewPassword("");
+      setNewRole("reader");
     } catch (err) {
       alert(err instanceof Error ? err.message : "Failed to create user");
     }
   };
 
-  const handleDeleteUser = async (id: string) => {
-    if (!confirm("Delete this user?")) return;
+  const handleDeleteUser = async (username: string) => {
+    if (!confirm("Deactivate this user?")) return;
     try {
-      await deleteUser(id);
-      setUsers((prev) => prev.filter((u) => u.id !== id));
+      await deleteUser(username);
+      setUsers((prev) => prev.filter((u) => u.username !== username));
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Failed to delete user");
+      alert(err instanceof Error ? err.message : "Failed to deactivate user");
     }
   };
 
   const handleCreatePolicy = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await createPolicy({ kind: newPolicyKind, value: newPolicyValue });
+      await createPolicy({ slug: newPolicySlug, policy_type: newPolicyType });
       const result = await listPolicies();
       setPolicies(result.policies);
-      setNewPolicyValue("");
+      setNewPolicySlug("");
     } catch (err) {
       alert(err instanceof Error ? err.message : "Failed to create policy");
     }
   };
 
-  const handleDeletePolicy = async (id: string) => {
+  const handleDeletePolicy = async (slug: string) => {
     if (!confirm("Delete this policy?")) return;
     try {
-      await deletePolicy(id);
-      setPolicies((prev) => prev.filter((p) => p.id !== id));
+      await deletePolicy(slug);
+      setPolicies((prev) => prev.filter((p) => p.slug !== slug));
     } catch (err) {
       alert(err instanceof Error ? err.message : "Failed to delete policy");
     }
@@ -134,7 +136,16 @@ export function Admin() {
             value={newUsername}
             onChange={(e) => setNewUsername(e.target.value)}
             required
-            style={{ flex: "1 1 180px" }}
+            style={{ flex: "1 1 140px" }}
+          />
+          <input
+            className="form-input"
+            type="password"
+            placeholder="Password"
+            value={newPassword}
+            onChange={(e) => setNewPassword(e.target.value)}
+            required
+            style={{ flex: "1 1 140px" }}
           />
           <select
             className="form-input"
@@ -142,7 +153,8 @@ export function Admin() {
             onChange={(e) => setNewRole(e.target.value)}
             style={{ width: "auto" }}
           >
-            <option value="user">User</option>
+            <option value="reader">Reader</option>
+            <option value="publisher">Publisher</option>
             <option value="admin">Admin</option>
           </select>
           <button type="submit" className="btn btn-primary">Create User</button>
@@ -150,16 +162,16 @@ export function Admin() {
 
         <div className="management-list">
           {users.map((user) => (
-            <div key={user.id} className="management-item">
+            <div key={user.username} className="management-item">
               <div className="management-item-main">
                 <strong>{user.username}</strong>
                 <div style={{ fontSize: "0.85rem", color: "var(--ink-soft)" }}>
-                  {user.role} &middot; {new Date(user.createdAt).toLocaleDateString()}
+                  {user.role} &middot; {user.isActive ? "Active" : "Inactive"} &middot; {new Date(user.createdAt).toLocaleDateString()}
                 </div>
               </div>
               <div className="management-actions">
-                <button className="btn btn-danger btn-sm" onClick={() => handleDeleteUser(user.id)}>
-                  Delete
+                <button className="btn btn-danger btn-sm" onClick={() => handleDeleteUser(user.username)}>
+                  Deactivate
                 </button>
               </div>
             </div>
@@ -174,23 +186,23 @@ export function Admin() {
       <section>
         <h2 className="section-title" style={{ fontSize: "1.3rem" }}>Admission Policies</h2>
         <form onSubmit={handleCreatePolicy} style={{ display: "flex", gap: 10, marginBottom: 16, flexWrap: "wrap" }}>
-          <select
-            className="form-input"
-            value={newPolicyKind}
-            onChange={(e) => setNewPolicyKind(e.target.value)}
-            style={{ width: "auto" }}
-          >
-            <option value="email">Email</option>
-            <option value="domain">Domain</option>
-          </select>
           <input
             className="form-input"
-            placeholder={newPolicyKind === "email" ? "user@example.com" : "example.com"}
-            value={newPolicyValue}
-            onChange={(e) => setNewPolicyValue(e.target.value)}
+            placeholder="Skill slug"
+            value={newPolicySlug}
+            onChange={(e) => setNewPolicySlug(e.target.value)}
             required
             style={{ flex: "1 1 200px" }}
           />
+          <select
+            className="form-input"
+            value={newPolicyType}
+            onChange={(e) => setNewPolicyType(e.target.value)}
+            style={{ width: "auto" }}
+          >
+            <option value="allow">Allow</option>
+            <option value="deny">Deny</option>
+          </select>
           <button type="submit" className="btn btn-primary">Add Policy</button>
         </form>
 
@@ -198,11 +210,14 @@ export function Admin() {
           {policies.map((policy) => (
             <div key={policy.id} className="management-item">
               <div className="management-item-main">
-                <strong>{policy.kind}</strong>
-                <div style={{ fontSize: "0.85rem", color: "var(--ink-soft)" }}>{policy.value}</div>
+                <strong>{policy.slug}</strong>
+                <div style={{ fontSize: "0.85rem", color: "var(--ink-soft)" }}>
+                  {policy.policyType} &middot; approved by {policy.approvedBy || "\u2014"}
+                  {policy.notes && ` \u00b7 ${policy.notes}`}
+                </div>
               </div>
               <div className="management-actions">
-                <button className="btn btn-danger btn-sm" onClick={() => handleDeletePolicy(policy.id)}>
+                <button className="btn btn-danger btn-sm" onClick={() => handleDeletePolicy(policy.slug)}>
                   Delete
                 </button>
               </div>

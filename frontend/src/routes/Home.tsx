@@ -1,26 +1,21 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { listSkills, type Skill } from "../lib/api";
+import { listSkills, type SkillListItem } from "../lib/api";
 import { SkillCard } from "../components/SkillCard";
 import { InstallCommand } from "../components/InstallCommand";
 
 export function Home() {
-  const [featuredSkills, setFeaturedSkills] = useState<Skill[]>([]);
-  const [popularSkills, setPopularSkills] = useState<Skill[]>([]);
+  const [featuredSkills, setFeaturedSkills] = useState<SkillListItem[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
 
-    Promise.all([
-      listSkills({ limit: 6 }),
-      listSkills({ limit: 6, sort: "downloads" }),
-    ])
-      .then(([featured, popular]) => {
+    listSkills({ limit: 6 })
+      .then((result) => {
         if (cancelled) return;
-        setFeaturedSkills(featured.skills);
-        setPopularSkills(popular.skills);
+        setFeaturedSkills(result.items);
       })
       .catch(() => {})
       .finally(() => {
@@ -69,22 +64,6 @@ export function Home() {
             <div className="card">No highlighted skills yet.</div>
           ) : (
             featuredSkills.map((skill) => (
-              <SkillCard key={skill.slug} skill={skill} />
-            ))
-          )}
-        </div>
-      </section>
-
-      <section className="section">
-        <h2 className="section-title">Popular skills</h2>
-        <p className="section-subtitle">Most-downloaded picks.</p>
-        <div className="grid">
-          {loading ? (
-            <div className="card"><span className="loading-indicator">Loading skills...</span></div>
-          ) : popularSkills.length === 0 ? (
-            <div className="card">No skills yet. Be the first.</div>
-          ) : (
-            popularSkills.map((skill) => (
               <SkillCard key={skill.slug} skill={skill} />
             ))
           )}
