@@ -1,0 +1,12 @@
+# Copy this file to backend.tf and fill in your values.
+# The S3 bucket and DynamoDB table for state locking must be created separately.
+
+terraform {
+  backend "s3" {
+    bucket         = "your-terraform-state-bucket"
+    key            = "clawhub-enterprise/terraform.tfstate"
+    region         = "us-east-1"
+    dynamodb_table = "your-terraform-lock-table"
+    encrypt        = true
+  }
+}
