@@ -26,7 +26,6 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
 // Helper functions
 function get<T>(path: string) { return request<T>("GET", path); }
 function post<T>(path: string, body?: unknown) { return request<T>("POST", path, body); }
-function patch<T>(path: string, body?: unknown) { return request<T>("PATCH", path, body); }
 function del<T>(path: string) { return request<T>("DELETE", path); }
 
 // --- Types matching backend Pydantic schemas ---
@@ -86,11 +85,6 @@ export type SearchResponse = {
   results: SearchResultItem[];
 };
 
-export type ResolveResponse = {
-  match: { version: string } | null;
-  latestVersion: VersionInfo | null;
-};
-
 export type PublishResponse = {
   slug: string;
   version: string;
@@ -126,15 +120,6 @@ export type AdmissionPolicy = {
   createdAt: number;
 };
 
-export type PendingRequest = {
-  id: string;
-  slug: string;
-  requestedBy: string | null;
-  requestedAt: number | null;
-  reason: string | null;
-  status: string;
-};
-
 // --- Skill API functions ---
 
 export function listSkills(params?: { cursor?: string; limit?: number }) {
@@ -157,12 +142,6 @@ export function getVersions(slug: string) {
 
 export function searchSkills(q: string) {
   return get<SearchResponse>(`/api/v1/search?q=${encodeURIComponent(q)}`);
-}
-
-export function resolveSkill(slug: string, hash?: string) {
-  const query = new URLSearchParams({ slug });
-  if (hash) query.set("hash", hash);
-  return get<ResolveResponse>(`/api/v1/resolve?${query.toString()}`);
 }
 
 export function downloadSkill(slug: string, version: string): string {
@@ -197,15 +176,6 @@ export function whoami() {
   return get<WhoamiResponse>("/api/v1/whoami");
 }
 
-export async function login(token: string) {
-  localStorage.setItem("clawhub-token", token);
-  return whoami();
-}
-
-export function logout() {
-  localStorage.removeItem("clawhub-token");
-}
-
 // --- Admin API functions ---
 
 export function listUsers() {
@@ -228,22 +198,7 @@ export function createPolicy(data: { slug: string; policy_type?: string; allowed
   return post<AdmissionPolicy>("/api/v1/admin/policies", data);
 }
 
-export function updatePolicy(slug: string, data: { policy_type?: string; allowed_versions?: string; notes?: string }) {
-  return patch<AdmissionPolicy>(`/api/v1/admin/policies/${slug}`, data);
-}
-
 export function deletePolicy(slug: string) {
   return del<{ detail: string }>(`/api/v1/admin/policies/${slug}`);
 }
 
-export function listPendingRequests() {
-  return get<{ requests: PendingRequest[] }>("/api/v1/admin/policies/pending");
-}
-
-export function approvePending(requestId: string) {
-  return post<AdmissionPolicy>(`/api/v1/admin/policies/pending/${requestId}/approve`);
-}
-
-export function denyPending(requestId: string) {
-  return post<{ detail: string }>(`/api/v1/admin/policies/pending/${requestId}/deny`);
-}
