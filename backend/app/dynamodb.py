@@ -1,5 +1,7 @@
 """DynamoDB client and CRUD operations using single-table design."""
 
+import base64
+import json as _json
 import time
 from typing import Any
 
@@ -58,11 +60,8 @@ def get_skill(slug: str) -> dict | None:
     return item
 
 
-def update_skill(slug: str, **updates) -> dict | None:
-    now = _now_ms()
-    updates["updatedAt"] = now
-    updates["GSI1SK"] = f"{now}#{slug}"
-
+def _build_update_expression(updates: dict) -> tuple[str, dict, dict]:
+    """Build DynamoDB SET update expression from a dict of field updates."""
     expr_parts = []
     names = {}
     values = {}
@@ -72,11 +71,18 @@ def update_skill(slug: str, **updates) -> dict | None:
         expr_parts.append(f"{alias} = {val_alias}")
         names[alias] = k
         values[val_alias] = v
+    return "SET " + ", ".join(expr_parts), names, values
 
-    # Also update GSI2SK if ownerUsername is available
+
+def update_skill(slug: str, **updates) -> dict | None:
+    now = _now_ms()
+    updates["updatedAt"] = now
+    updates["GSI1SK"] = f"{now}#{slug}"
+
+    expression, names, values = _build_update_expression(updates)
     resp = get_table().update_item(
         Key={"PK": f"SKILL#{slug}", "SK": "META"},
-        UpdateExpression="SET " + ", ".join(expr_parts),
+        UpdateExpression=expression,
         ExpressionAttributeNames=names,
         ExpressionAttributeValues=values,
         ReturnValues="ALL_NEW",
@@ -336,19 +342,10 @@ def update_policy(slug: str, approved_by: str, **updates) -> dict | None:
     # Remove None values
     updates = {k: v for k, v in updates.items() if v is not None}
 
-    expr_parts = []
-    names = {}
-    values = {}
-    for i, (k, v) in enumerate(updates.items()):
-        alias = f"#f{i}"
-        val_alias = f":v{i}"
-        expr_parts.append(f"{alias} = {val_alias}")
-        names[alias] = k
-        values[val_alias] = v
-
+    expression, names, values = _build_update_expression(updates)
     resp = get_table().update_item(
         Key={"PK": f"POLICY#{slug}", "SK": "META"},
-        UpdateExpression="SET " + ", ".join(expr_parts),
+        UpdateExpression=expression,
         ExpressionAttributeNames=names,
         ExpressionAttributeValues=values,
         ReturnValues="ALL_NEW",
@@ -470,9 +467,6 @@ def search_skills(query: str, limit: int = 20) -> list[dict]:
 
 
 # --- Cursor helpers ---
-
-import base64
-import json as _json
 
 
 def _encode_cursor(last_key: dict) -> str:

@@ -1,7 +1,5 @@
 """Admin endpoints: user management and admission policy CRUD."""
 
-import time
-
 from fastapi import APIRouter, Depends, HTTPException
 
 from ..auth import generate_api_token, hash_password, require_role
@@ -24,12 +22,17 @@ router = APIRouter(prefix="/api/v1/admin", tags=["admin"])
 _admin_dep = require_role("admin")
 
 
-def _now_ms() -> int:
-    return int(time.time() * 1000)
-
-
-def _policy_id(item: dict) -> str:
-    return item.get("slug", "")
+def _make_policy_schema(p: dict) -> AdmissionPolicySchema:
+    return AdmissionPolicySchema(
+        id=p.get("slug", ""),
+        slug=p["slug"],
+        allowedVersions=p.get("allowedVersions"),
+        policyType=p["policyType"],
+        approvedBy=p.get("approvedBy"),
+        approvedAt=p.get("approvedAt"),
+        notes=p.get("notes"),
+        createdAt=p.get("createdAt", 0),
+    )
 
 
 def _pending_id(item: dict) -> str:
@@ -116,19 +119,7 @@ async def list_policies(
 ) -> AdmissionPolicyListResponse:
     policies = dynamodb.list_policies()
     return AdmissionPolicyListResponse(
-        policies=[
-            AdmissionPolicySchema(
-                id=_policy_id(p),
-                slug=p["slug"],
-                allowedVersions=p.get("allowedVersions"),
-                policyType=p["policyType"],
-                approvedBy=p.get("approvedBy"),
-                approvedAt=p.get("approvedAt"),
-                notes=p.get("notes"),
-                createdAt=p.get("createdAt", 0),
-            )
-            for p in policies
-        ]
+        policies=[_make_policy_schema(p) for p in policies]
     )
 
 
@@ -161,16 +152,7 @@ async def create_policy(
 
     dynamodb.delete_pending_for_slug(body.slug)
 
-    return AdmissionPolicySchema(
-        id=_policy_id(policy),
-        slug=policy["slug"],
-        allowedVersions=policy.get("allowedVersions"),
-        policyType=policy["policyType"],
-        approvedBy=policy.get("approvedBy"),
-        approvedAt=policy.get("approvedAt"),
-        notes=policy.get("notes"),
-        createdAt=policy.get("createdAt", 0),
-    )
+    return _make_policy_schema(policy)
 
 
 @router.patch("/policies/{slug}", response_model=AdmissionPolicySchema)
@@ -198,16 +180,7 @@ async def update_policy(
 
     policy = dynamodb.update_policy(slug, approved_by=user["username"], **updates)
 
-    return AdmissionPolicySchema(
-        id=_policy_id(policy),
-        slug=policy["slug"],
-        allowedVersions=policy.get("allowedVersions"),
-        policyType=policy["policyType"],
-        approvedBy=policy.get("approvedBy"),
-        approvedAt=policy.get("approvedAt"),
-        notes=policy.get("notes"),
-        createdAt=policy.get("createdAt", 0),
-    )
+    return _make_policy_schema(policy)
 
 
 @router.delete("/policies/{slug}", status_code=200)
@@ -270,16 +243,7 @@ async def approve_pending(
     )
     dynamodb.update_pending_status(request_id, "approved")
 
-    return AdmissionPolicySchema(
-        id=_policy_id(policy),
-        slug=policy["slug"],
-        allowedVersions=policy.get("allowedVersions"),
-        policyType=policy["policyType"],
-        approvedBy=policy.get("approvedBy"),
-        approvedAt=policy.get("approvedAt"),
-        notes=policy.get("notes"),
-        createdAt=policy.get("createdAt", 0),
-    )
+    return _make_policy_schema(policy)
 
 
 @router.post("/policies/pending/{request_id}/deny", status_code=200)

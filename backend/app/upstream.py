@@ -1,11 +1,11 @@
 """Upstream proxy: fetch skills from public ClawHub and cache locally."""
 
 import logging
-from typing import Any
 
 import httpx
 
 from . import dynamodb, storage
+from .schemas import normalize_tags
 
 logger = logging.getLogger(__name__)
 
@@ -22,7 +22,7 @@ def _get_client() -> httpx.AsyncClient:
     return _client
 
 
-async def is_proxy_enabled() -> tuple[bool, str]:
+def is_proxy_enabled() -> tuple[bool, str]:
     """Return (enabled, upstream_base_url)."""
     setting = dynamodb.get_setting("proxy")
     if not setting or not setting.get("enabled"):
@@ -31,7 +31,7 @@ async def is_proxy_enabled() -> tuple[bool, str]:
 
 
 async def resolve_upstream(slug: str, hash: str | None = None) -> dict | None:
-    enabled, base = await is_proxy_enabled()
+    enabled, base = is_proxy_enabled()
     if not enabled:
         return None
     try:
@@ -47,7 +47,7 @@ async def resolve_upstream(slug: str, hash: str | None = None) -> dict | None:
 
 
 async def download_upstream(slug: str, version: str) -> bytes | None:
-    enabled, base = await is_proxy_enabled()
+    enabled, base = is_proxy_enabled()
     if not enabled:
         return None
     try:
@@ -63,7 +63,7 @@ async def download_upstream(slug: str, version: str) -> bytes | None:
 
 
 async def search_upstream(q: str, limit: int = 20) -> list[dict]:
-    enabled, base = await is_proxy_enabled()
+    enabled, base = is_proxy_enabled()
     if not enabled:
         return []
     try:
@@ -80,7 +80,7 @@ async def search_upstream(q: str, limit: int = 20) -> list[dict]:
 
 
 async def fetch_skill_detail(slug: str) -> dict | None:
-    enabled, base = await is_proxy_enabled()
+    enabled, base = is_proxy_enabled()
     if not enabled:
         return None
     try:
@@ -93,7 +93,7 @@ async def fetch_skill_detail(slug: str) -> dict | None:
 
 
 async def fetch_skill_versions(slug: str) -> list[dict]:
-    enabled, base = await is_proxy_enabled()
+    enabled, base = is_proxy_enabled()
     if not enabled:
         return []
     try:
@@ -114,19 +114,11 @@ def cache_skill_metadata(slug: str, detail: dict) -> None:
         if existing:
             return  # Already cached or local, don't overwrite
 
-        raw_tags = skill.get("tags", [])
-        if isinstance(raw_tags, dict):
-            tags = list(raw_tags.keys())
-        elif isinstance(raw_tags, str):
-            tags = [t.strip() for t in raw_tags.split(",") if t.strip()]
-        else:
-            tags = list(raw_tags) if raw_tags else []
-
         dynamodb.put_skill(
             slug=slug,
             display_name=skill.get("displayName", slug),
             summary=skill.get("summary", ""),
-            tags=tags,
+            tags=normalize_tags(skill.get("tags", [])),
             owner_username="__upstream__",
         )
         # Mark as external

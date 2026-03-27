@@ -3,19 +3,14 @@
 import io
 import json
 import re
-import time
 import zipfile
-from typing import Optional
 
 from fastapi import (
     APIRouter,
     Depends,
-    File,
-    Form,
     HTTPException,
     Query,
     Request,
-    UploadFile,
 )
 from fastapi.responses import Response
 
@@ -23,7 +18,6 @@ from ..auth import get_current_user, require_role
 from .. import dynamodb, storage, upstream
 from ..schemas import (
     OwnerInfo,
-    PublishResponse,
     ResolveMatch,
     ResolveResponse,
     SearchResponse,
@@ -34,7 +28,7 @@ from ..schemas import (
     SkillStats,
     SkillVersionsResponse,
     VersionInfo,
-    parse_tags,
+    normalize_tags,
 )
 
 router = APIRouter(prefix="/api/v1", tags=["skills"])
@@ -42,36 +36,33 @@ router = APIRouter(prefix="/api/v1", tags=["skills"])
 _SLUG_RE = re.compile(r"^[a-z0-9][a-z0-9-]*[a-z0-9]$|^[a-z0-9]$")
 
 
-def _now_ms() -> int:
-    return int(time.time() * 1000)
+def _sort_versions(versions: list[dict]) -> list[dict]:
+    return sorted(versions, key=lambda v: v.get("createdAt", 0), reverse=True)
+
+
+def _make_version_info(v: dict) -> VersionInfo:
+    return VersionInfo(
+        version=v["version"],
+        createdAt=v.get("createdAt", 0),
+        changelog=v.get("changelog"),
+    )
 
 
 def _skill_to_list_item(item: dict, versions: list[dict] | None = None) -> SkillListItem:
     """Convert a DynamoDB skill item to a SkillListItem schema."""
     if versions is None:
         versions = dynamodb.list_versions(item["slug"])
-    versions_sorted = sorted(versions, key=lambda v: v.get("createdAt", 0), reverse=True)
+    versions_sorted = _sort_versions(versions)
     latest = versions_sorted[0] if versions_sorted else None
-    raw_tags = item.get("tags", [])
-    if isinstance(raw_tags, dict):
-        tags = list(raw_tags.keys())
-    elif isinstance(raw_tags, str):
-        tags = parse_tags(raw_tags)
-    else:
-        tags = list(raw_tags) if raw_tags else []
     return SkillListItem(
         slug=item["slug"],
         displayName=item.get("displayName", item["slug"]),
         summary=item.get("summary"),
-        tags=tags,
+        tags=normalize_tags(item.get("tags", [])),
         stats=SkillStats(downloads=0),
         createdAt=item.get("createdAt", 0),
         updatedAt=item.get("updatedAt", 0),
-        latestVersion=VersionInfo(
-            version=latest["version"],
-            createdAt=latest.get("createdAt", 0),
-            changelog=latest.get("changelog"),
-        ) if latest else None,
+        latestVersion=_make_version_info(latest) if latest else None,
     )
 
 
@@ -80,7 +71,7 @@ def _skill_to_list_item(item: dict, versions: list[dict] | None = None) -> Skill
 @router.get("/resolve", response_model=ResolveResponse)
 async def resolve_skill(
     slug: str = Query(..., description="Skill slug to resolve"),
-    hash: Optional[str] = Query(None, description="Content hash to match"),
+    hash: str | None = Query(None, description="Content hash to match"),
     user: dict = Depends(get_current_user),
 ) -> ResolveResponse:
     skill = dynamodb.get_skill(slug)
@@ -93,13 +84,10 @@ async def resolve_skill(
             detail = await upstream.fetch_skill_detail(slug)
             if detail:
                 upstream.cache_skill_metadata(slug, detail)
+            lv = upstream_data.get("latestVersion")
             return ResolveResponse(
                 match=ResolveMatch(version=upstream_data["match"]["version"]) if upstream_data.get("match") else None,
-                latestVersion=VersionInfo(
-                    version=upstream_data["latestVersion"]["version"],
-                    createdAt=upstream_data["latestVersion"].get("createdAt", 0),
-                    changelog=upstream_data["latestVersion"].get("changelog"),
-                ) if upstream_data.get("latestVersion") else None,
+                latestVersion=_make_version_info(lv) if lv else None,
             )
         raise HTTPException(status_code=404, detail=f"Skill not found: {slug}")
 
@@ -107,7 +95,7 @@ async def resolve_skill(
     if not versions:
         return ResolveResponse(match=None, latestVersion=None)
 
-    versions_sorted = sorted(versions, key=lambda v: v.get("createdAt", 0), reverse=True)
+    versions_sorted = _sort_versions(versions)
     latest = versions_sorted[0]
 
     match: ResolveMatch | None = None
@@ -119,11 +107,7 @@ async def resolve_skill(
 
     return ResolveResponse(
         match=match,
-        latestVersion=VersionInfo(
-            version=latest["version"],
-            createdAt=latest.get("createdAt", 0),
-            changelog=latest.get("changelog"),
-        ),
+        latestVersion=_make_version_info(latest),
     )
 
 
@@ -192,7 +176,7 @@ async def search_skills(
     local_slugs = set()
     for item in items:
         versions = dynamodb.list_versions(item["slug"])
-        versions_sorted = sorted(versions, key=lambda v: v.get("createdAt", 0), reverse=True)
+        versions_sorted = _sort_versions(versions)
         latest = versions_sorted[0] if versions_sorted else None
         results.append(SearchResultItem(
             slug=item["slug"],
@@ -226,7 +210,7 @@ async def search_skills(
 
 @router.get("/skills", response_model=SkillListResponse)
 async def list_skills(
-    cursor: Optional[str] = Query(None, description="Pagination cursor"),
+    cursor: str | None = Query(None, description="Pagination cursor"),
     limit: int = Query(50, ge=1, le=100),
     user: dict = Depends(get_current_user),
 ) -> SkillListResponse:
@@ -257,34 +241,13 @@ async def get_skill(
             raise HTTPException(status_code=404, detail=f"Skill not found: {slug}")
 
     versions = dynamodb.list_versions(slug)
-    versions_sorted = sorted(versions, key=lambda v: v.get("createdAt", 0), reverse=True)
+    versions_sorted = _sort_versions(versions)
     latest = versions_sorted[0] if versions_sorted else None
-
     owner_username = skill.get("ownerUsername", "unknown")
-    tags = skill.get("tags", [])
-    if isinstance(tags, str):
-        tags = parse_tags(tags)
 
     return SkillDetailResponse(
-        skill=SkillListItem(
-            slug=skill["slug"],
-            displayName=skill.get("displayName", slug),
-            summary=skill.get("summary"),
-            tags=tags,
-            stats=SkillStats(downloads=0),
-            createdAt=skill.get("createdAt", 0),
-            updatedAt=skill.get("updatedAt", 0),
-            latestVersion=VersionInfo(
-                version=latest["version"],
-                createdAt=latest.get("createdAt", 0),
-                changelog=latest.get("changelog"),
-            ) if latest else None,
-        ),
-        latestVersion=VersionInfo(
-            version=latest["version"],
-            createdAt=latest.get("createdAt", 0),
-            changelog=latest.get("changelog"),
-        ) if latest else None,
+        skill=_skill_to_list_item(skill, versions),
+        latestVersion=_make_version_info(latest) if latest else None,
         owner=OwnerInfo(
             handle=owner_username,
             displayName=owner_username,
@@ -306,29 +269,13 @@ async def get_skill_versions(
         upstream_versions = await upstream.fetch_skill_versions(slug)
         if upstream_versions:
             return SkillVersionsResponse(
-                versions=[
-                    VersionInfo(
-                        version=v.get("version", ""),
-                        createdAt=v.get("createdAt", 0),
-                        changelog=v.get("changelog"),
-                    )
-                    for v in upstream_versions
-                ]
+                versions=[_make_version_info(v) for v in upstream_versions]
             )
         raise HTTPException(status_code=404, detail=f"Skill not found: {slug}")
 
     versions = dynamodb.list_versions(slug)
-    versions_sorted = sorted(versions, key=lambda v: v.get("createdAt", 0), reverse=True)
-
     return SkillVersionsResponse(
-        versions=[
-            VersionInfo(
-                version=v["version"],
-                createdAt=v.get("createdAt", 0),
-                changelog=v.get("changelog"),
-            )
-            for v in versions_sorted
-        ]
+        versions=[_make_version_info(v) for v in _sort_versions(versions)]
     )
 
 
@@ -436,7 +383,7 @@ async def publish_skill(
     username = user["username"]
 
     if existing_skill:
-        updates: dict = {"updatedAt": _now_ms()}
+        updates: dict = {}
         if display_name:
             updates["displayName"] = display_name
         if summary is not None:

@@ -2,28 +2,9 @@ import { useState } from "react";
 
 type Section = "auth" | "skills" | "keys" | "admin" | "discovery";
 
-function Endpoint({ method, path, auth, desc }: {
-  method: string; path: string; auth: string; desc: string;
-}) {
-  const methodColor: Record<string, string> = {
-    GET: "#22c55e", POST: "#3b82f6", DELETE: "#ef4444", PATCH: "#f59e0b",
-  };
-  return (
-    <div style={{
-      display: "flex", gap: "8px", alignItems: "baseline",
-      padding: "6px 0", borderBottom: "1px solid var(--line)",
-    }}>
-      <span style={{
-        background: methodColor[method] || "#888",
-        color: "#fff", fontSize: "0.7rem", fontWeight: 700,
-        padding: "2px 6px", borderRadius: "4px", minWidth: "52px",
-        textAlign: "center", flexShrink: 0,
-      }}>{method}</span>
-      <code style={{ fontSize: "0.85rem", flex: 1 }}>{path}</code>
-      <span style={{ fontSize: "0.75rem", color: "var(--muted)", flexShrink: 0 }}>{auth}</span>
-    </div>
-  );
-}
+const METHOD_COLORS: Record<string, string> = {
+  GET: "#22c55e", POST: "#3b82f6", DELETE: "#ef4444", PATCH: "#f59e0b",
+};
 
 function Block({ title, children, lang = "json" }: { title: string; children: string; lang?: string }) {
   const [copied, setCopied] = useState(false);
@@ -63,14 +44,11 @@ function SectionBlock({ id, title, children }: { id: string; title: string; chil
 function EndpointDetail({ method, path, auth, desc, children }: {
   method: string; path: string; auth: string; desc: string; children: React.ReactNode;
 }) {
-  const methodColor: Record<string, string> = {
-    GET: "#22c55e", POST: "#3b82f6", DELETE: "#ef4444", PATCH: "#f59e0b",
-  };
   return (
     <div style={{ marginBottom: "32px" }}>
       <div style={{ display: "flex", gap: "8px", alignItems: "center", marginBottom: "4px" }}>
         <span style={{
-          background: methodColor[method] || "#888", color: "#fff",
+          background: METHOD_COLORS[method] || "#888", color: "#fff",
           fontSize: "0.75rem", fontWeight: 700, padding: "2px 8px", borderRadius: "4px",
         }}>{method}</span>
         <code style={{ fontSize: "1rem", fontWeight: 600 }}>{path}</code>

@@ -178,30 +178,12 @@ export type LoginResponse = {
   role: string;
 };
 
-export async function login(username: string, password: string): Promise<LoginResponse> {
-  const res = await fetch(`${API_BASE}/api/v1/auth/login`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ username, password }),
-  });
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(text || `${res.status} ${res.statusText}`);
-  }
-  return res.json();
+export function login(username: string, password: string): Promise<LoginResponse> {
+  return post<LoginResponse>("/api/v1/auth/login", { username, password });
 }
 
-export async function register(username: string, password: string): Promise<LoginResponse> {
-  const res = await fetch(`${API_BASE}/api/v1/auth/register`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ username, password }),
-  });
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(text || `${res.status} ${res.statusText}`);
-  }
-  return res.json();
+export function register(username: string, password: string): Promise<LoginResponse> {
+  return post<LoginResponse>("/api/v1/auth/register", { username, password });
 }
 
 export async function logout(): Promise<void> {

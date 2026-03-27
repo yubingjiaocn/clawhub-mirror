@@ -166,3 +166,14 @@ def parse_tags(tags_str: str) -> list[str]:
         return json.loads(tags_str) if tags_str else []
     except Exception:
         return [t.strip() for t in tags_str.split(",") if t.strip()]
+
+
+def normalize_tags(raw_tags: object) -> list[str]:
+    """Normalize tags from various DynamoDB/upstream formats to a list of strings."""
+    if isinstance(raw_tags, dict):
+        return list(raw_tags.keys())
+    if isinstance(raw_tags, str):
+        return parse_tags(raw_tags)
+    if raw_tags:
+        return list(raw_tags)
+    return []

@@ -17,7 +17,6 @@ export default function Header() {
   const [loginLoading, setLoginLoading] = useState(false);
   const userMenuRef = useRef<HTMLDivElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
-  const loginRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -244,7 +243,6 @@ export default function Header() {
           onClick={(e) => { if (e.target === e.currentTarget) setLoginOpen(false); }}
         >
           <div
-            ref={loginRef}
             style={{
               background: "var(--surface)",
               border: "1px solid var(--line)",
