@@ -1,7 +1,10 @@
 """Skill CRUD, search, resolve, and download endpoints."""
 
+import io
+import json
 import re
 import time
+import zipfile
 from typing import Optional
 
 from fastapi import (
@@ -11,6 +14,7 @@ from fastapi import (
     Form,
     HTTPException,
     Query,
+    Request,
     UploadFile,
 )
 from fastapi.responses import Response
@@ -246,24 +250,88 @@ async def get_skill_versions(
 
 # --- Publish ---
 
-@router.post("/skills", response_model=PublishResponse)
+async def _parse_publish_request(request: Request) -> tuple[dict, bytes]:
+    """Parse publish request in either CLI format (payload+files) or form format."""
+    form = await request.form()
+
+    # CLI format: "payload" JSON string + "files" blobs
+    if "payload" in form:
+        payload_raw = form["payload"]
+        payload_str = payload_raw if isinstance(payload_raw, str) else await payload_raw.read()
+        if isinstance(payload_str, bytes):
+            payload_str = payload_str.decode()
+        payload = json.loads(payload_str)
+
+        # Collect files into a zip
+        buf = io.BytesIO()
+        with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+            for key, value in form.multi_items():
+                if key == "files" and hasattr(value, "read"):
+                    content = await value.read()
+                    filename = getattr(value, "filename", None) or "file"
+                    zf.writestr(filename, content)
+        zip_data = buf.getvalue()
+
+        return {
+            "slug": payload.get("slug", ""),
+            "version": payload.get("version", ""),
+            "display_name": payload.get("displayName") or payload.get("name"),
+            "summary": payload.get("description") or payload.get("summary"),
+            "changelog": payload.get("changelog"),
+            "tags": payload.get("tags", []),
+        }, zip_data
+
+    # Legacy form format: slug, version, file fields
+    slug = form.get("slug", "")
+    version = form.get("version", "")
+    display_name = form.get("display_name")
+    summary = form.get("summary")
+    changelog = form.get("changelog")
+    tags_raw = form.get("tags")
+
+    tag_list: list[str] = []
+    if tags_raw:
+        tags_str = tags_raw if isinstance(tags_raw, str) else (await tags_raw.read()).decode()
+        tag_list = [t.strip() for t in tags_str.split(",") if t.strip()]
+
+    file_field = form.get("file")
+    if not file_field or not hasattr(file_field, "read"):
+        raise HTTPException(status_code=400, detail="Missing file upload.")
+    zip_data = await file_field.read()
+
+    return {
+        "slug": slug if isinstance(slug, str) else (await slug.read()).decode(),
+        "version": version if isinstance(version, str) else (await version.read()).decode(),
+        "display_name": display_name,
+        "summary": summary,
+        "changelog": changelog,
+        "tags": tag_list,
+    }, zip_data
+
+
+@router.post("/skills")
 async def publish_skill(
-    slug: str = Form(..., description="Unique skill slug"),
-    version: str = Form(..., description="Semantic version string"),
-    display_name: Optional[str] = Form(None, description="Human-readable name"),
-    summary: Optional[str] = Form(None, description="Short description"),
-    changelog: Optional[str] = Form(None, description="Version changelog"),
-    tags: Optional[str] = Form(None, description="Comma-separated tags"),
-    file: UploadFile = File(..., description="Skill zip archive"),
+    request: Request,
     user: dict = Depends(require_role("admin", "publisher")),
-) -> PublishResponse:
+) -> dict:
+    meta, zip_data = await _parse_publish_request(request)
+
+    slug = meta["slug"]
+    version = meta["version"]
+    display_name = meta.get("display_name")
+    summary = meta.get("summary")
+    changelog = meta.get("changelog")
+    tags = meta.get("tags", [])
+
+    if not slug or not version:
+        raise HTTPException(status_code=400, detail="slug and version are required.")
+
     if not _SLUG_RE.match(slug):
         raise HTTPException(
             status_code=400,
             detail="Slug must be lowercase alphanumeric with hyphens only.",
         )
 
-    zip_data = await file.read()
     if not zip_data:
         raise HTTPException(status_code=400, detail="Empty file upload.")
 
@@ -277,9 +345,7 @@ async def publish_skill(
             detail=f"Version {version} already exists for {slug}.",
         )
 
-    tag_list: list[str] = []
-    if tags:
-        tag_list = [t.strip() for t in tags.split(",") if t.strip()]
+    tag_list: list[str] = tags if isinstance(tags, list) else [t.strip() for t in str(tags).split(",") if t.strip()]
 
     # Get or create skill
     existing_skill = dynamodb.get_skill(slug)
@@ -315,7 +381,8 @@ async def publish_skill(
         file_size=len(zip_data),
     )
 
-    return PublishResponse(slug=slug, version=version)
+    return {"ok": True, "skillId": slug, "versionId": f"{slug}@{version}",
+            "slug": slug, "version": version, "message": "Published successfully"}
 
 
 # --- Delete (soft) ---
