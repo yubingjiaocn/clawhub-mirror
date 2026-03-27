@@ -8,6 +8,8 @@ export function InstallCommand({ slug = "example-skill" }: { slug?: string }) {
   const [action, setAction] = useState<Action>("install");
   const siteUrl = window.location.origin;
 
+  const registryUrl = `${siteUrl}/api/v1`;
+
   const commands: Record<Cli, Record<Action, string>> = {
     clawhub: {
       install: `CLAWHUB_SITE=${siteUrl} clawhub install ${slug}`,
@@ -16,10 +18,10 @@ export function InstallCommand({ slug = "example-skill" }: { slug?: string }) {
       update: `CLAWHUB_SITE=${siteUrl} clawhub update --all`,
     },
     openclaw: {
-      install: `openclaw skills install ${slug}`,
-      search: `openclaw skills search "${slug}"`,
+      install: `CLAWHUB_REGISTRY=${registryUrl} openclaw skills install ${slug}`,
+      search: `CLAWHUB_REGISTRY=${registryUrl} openclaw skills search "${slug}"`,
       publish: `CLAWHUB_SITE=${siteUrl} clawhub publish . --slug ${slug} --version 1.0.0`,
-      update: `openclaw skills update --all`,
+      update: `CLAWHUB_REGISTRY=${registryUrl} openclaw skills update --all`,
     },
   };
 
