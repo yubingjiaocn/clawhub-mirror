@@ -246,6 +246,21 @@ export function revokeApiKey(keyId: string) {
   return del<{ detail: string }>(`/api/v1/auth/keys/${keyId}`);
 }
 
+// --- Proxy Settings ---
+
+export type ProxySettings = {
+  enabled: boolean;
+  upstreamUrl: string;
+};
+
+export function getProxySettings() {
+  return get<ProxySettings>("/api/v1/admin/settings/proxy");
+}
+
+export function updateProxySettings(data: { enabled: boolean; upstream_url?: string }) {
+  return request<ProxySettings>("PUT", "/api/v1/admin/settings/proxy", data);
+}
+
 // --- Admin API functions ---
 
 export function listUsers() {

@@ -143,6 +143,11 @@ class ErrorResponse(BaseModel):
     detail: str | None = None
 
 
+class ProxySettingsRequest(BaseModel):
+    enabled: bool
+    upstream_url: str | None = None
+
+
 class AdmissionPolicyCreateRequest(BaseModel):
     slug: str
     allowed_versions: str | None = None

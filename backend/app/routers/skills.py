@@ -20,7 +20,7 @@ from fastapi import (
 from fastapi.responses import Response
 
 from ..auth import get_current_user, require_role
-from .. import dynamodb, storage
+from .. import dynamodb, storage, upstream
 from ..schemas import (
     OwnerInfo,
     PublishResponse,
@@ -52,9 +52,13 @@ def _skill_to_list_item(item: dict, versions: list[dict] | None = None) -> Skill
         versions = dynamodb.list_versions(item["slug"])
     versions_sorted = sorted(versions, key=lambda v: v.get("createdAt", 0), reverse=True)
     latest = versions_sorted[0] if versions_sorted else None
-    tags = item.get("tags", [])
-    if isinstance(tags, str):
-        tags = parse_tags(tags)
+    raw_tags = item.get("tags", [])
+    if isinstance(raw_tags, dict):
+        tags = list(raw_tags.keys())
+    elif isinstance(raw_tags, str):
+        tags = parse_tags(raw_tags)
+    else:
+        tags = list(raw_tags) if raw_tags else []
     return SkillListItem(
         slug=item["slug"],
         displayName=item.get("displayName", item["slug"]),
@@ -80,7 +84,23 @@ async def resolve_skill(
     user: dict = Depends(get_current_user),
 ) -> ResolveResponse:
     skill = dynamodb.get_skill(slug)
+
+    # Proxy fallback: try upstream if not found locally
     if not skill:
+        upstream_data = await upstream.resolve_upstream(slug, hash)
+        if upstream_data:
+            # Cache metadata in background
+            detail = await upstream.fetch_skill_detail(slug)
+            if detail:
+                upstream.cache_skill_metadata(slug, detail)
+            return ResolveResponse(
+                match=ResolveMatch(version=upstream_data["match"]["version"]) if upstream_data.get("match") else None,
+                latestVersion=VersionInfo(
+                    version=upstream_data["latestVersion"]["version"],
+                    createdAt=upstream_data["latestVersion"].get("createdAt", 0),
+                    changelog=upstream_data["latestVersion"].get("changelog"),
+                ) if upstream_data.get("latestVersion") else None,
+            )
         raise HTTPException(status_code=404, detail=f"Skill not found: {slug}")
 
     versions = dynamodb.list_versions(slug)
@@ -116,7 +136,22 @@ async def download_skill(
     user: dict = Depends(get_current_user),
 ) -> Response:
     ver = dynamodb.get_version(slug, version)
+
     if not ver:
+        # Proxy fallback
+        upstream_data = await upstream.download_upstream(slug, version)
+        if upstream_data:
+            upstream.cache_skill_archive(slug, version, upstream_data)
+            # Also cache metadata if not present
+            if not dynamodb.get_skill(slug):
+                detail = await upstream.fetch_skill_detail(slug)
+                if detail:
+                    upstream.cache_skill_metadata(slug, detail)
+            return Response(
+                content=upstream_data,
+                media_type="application/zip",
+                headers={"Content-Disposition": f'attachment; filename="{slug}-{version}.zip"'},
+            )
         raise HTTPException(
             status_code=404,
             detail=f"Version '{version}' not found for skill '{slug}'.",
@@ -124,6 +159,15 @@ async def download_skill(
 
     data = storage.download(ver["storageKey"])
     if data is None:
+        # Archive missing from S3 — try upstream
+        upstream_data = await upstream.download_upstream(slug, version)
+        if upstream_data:
+            upstream.cache_skill_archive(slug, version, upstream_data)
+            return Response(
+                content=upstream_data,
+                media_type="application/zip",
+                headers={"Content-Disposition": f'attachment; filename="{slug}-{version}.zip"'},
+            )
         raise HTTPException(status_code=404, detail="Archive not found in storage.")
 
     return Response(
@@ -145,6 +189,7 @@ async def search_skills(
 ) -> SearchResponse:
     items = dynamodb.search_skills(q, limit=limit)
     results = []
+    local_slugs = set()
     for item in items:
         versions = dynamodb.list_versions(item["slug"])
         versions_sorted = sorted(versions, key=lambda v: v.get("createdAt", 0), reverse=True)
@@ -157,7 +202,24 @@ async def search_skills(
             score=1.0,
             updatedAt=item.get("updatedAt", 0),
         ))
-    return SearchResponse(results=results)
+        local_slugs.add(item["slug"])
+
+    # Merge upstream results if proxy enabled
+    upstream_results = await upstream.search_upstream(q, limit)
+    for ur in upstream_results:
+        slug = ur.get("slug", "")
+        if slug and slug not in local_slugs:
+            results.append(SearchResultItem(
+                slug=slug,
+                displayName=ur.get("displayName", slug),
+                summary=ur.get("summary"),
+                version=ur.get("version"),
+                score=ur.get("score", 0.5),
+                updatedAt=ur.get("updatedAt", 0),
+            ))
+            local_slugs.add(slug)
+
+    return SearchResponse(results=results[:limit])
 
 
 # --- List skills ---
@@ -183,8 +245,16 @@ async def get_skill(
     user: dict = Depends(get_current_user),
 ) -> SkillDetailResponse:
     skill = dynamodb.get_skill(slug)
+
+    # Proxy fallback
     if not skill:
-        raise HTTPException(status_code=404, detail=f"Skill not found: {slug}")
+        detail = await upstream.fetch_skill_detail(slug)
+        if detail:
+            upstream.cache_skill_metadata(slug, detail)
+            # Re-read from cache
+            skill = dynamodb.get_skill(slug)
+        if not skill:
+            raise HTTPException(status_code=404, detail=f"Skill not found: {slug}")
 
     versions = dynamodb.list_versions(slug)
     versions_sorted = sorted(versions, key=lambda v: v.get("createdAt", 0), reverse=True)
@@ -230,7 +300,21 @@ async def get_skill_versions(
     user: dict = Depends(get_current_user),
 ) -> SkillVersionsResponse:
     skill = dynamodb.get_skill(slug)
+
+    # Proxy fallback
     if not skill:
+        upstream_versions = await upstream.fetch_skill_versions(slug)
+        if upstream_versions:
+            return SkillVersionsResponse(
+                versions=[
+                    VersionInfo(
+                        version=v.get("version", ""),
+                        createdAt=v.get("createdAt", 0),
+                        changelog=v.get("changelog"),
+                    )
+                    for v in upstream_versions
+                ]
+            )
         raise HTTPException(status_code=404, detail=f"Skill not found: {slug}")
 
     versions = dynamodb.list_versions(slug)

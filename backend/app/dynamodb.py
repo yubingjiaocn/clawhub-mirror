@@ -368,6 +368,20 @@ def list_policies() -> list[dict]:
     return resp.get("Items", [])
 
 
+# --- System Settings ---
+
+def get_setting(key: str) -> dict | None:
+    resp = get_table().get_item(Key={"PK": "SYSTEM#settings", "SK": key})
+    return resp.get("Item")
+
+
+def put_setting(key: str, **attrs) -> dict:
+    now = _now_ms()
+    item = {"PK": "SYSTEM#settings", "SK": key, "updatedAt": now, **attrs}
+    get_table().put_item(Item=item)
+    return item
+
+
 # --- Pending Requests ---
 
 def put_pending_request(slug: str, requested_by: str, reason: str | None = None) -> dict:

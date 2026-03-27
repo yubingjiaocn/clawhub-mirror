@@ -13,6 +13,7 @@ from ..schemas import (
     AdmissionPolicyUpdateRequest,
     PendingRequestListResponse,
     PendingRequestSchema,
+    ProxySettingsRequest,
     UserCreateRequest,
     UserCreateResponse,
     UserSchema,
@@ -293,3 +294,32 @@ async def deny_pending(
     slug = pending["slug"]
     dynamodb.update_pending_status(request_id, "denied")
     return {"detail": f"Pending request for '{slug}' has been denied."}
+
+
+# --- Proxy settings ---
+
+@router.get("/settings/proxy")
+async def get_proxy_settings(
+    user: dict = Depends(_admin_dep),
+) -> dict:
+    setting = dynamodb.get_setting("proxy")
+    return {
+        "enabled": setting.get("enabled", False) if setting else False,
+        "upstreamUrl": setting.get("upstreamUrl", "https://clawhub.ai") if setting else "https://clawhub.ai",
+    }
+
+
+@router.put("/settings/proxy")
+async def update_proxy_settings(
+    body: ProxySettingsRequest,
+    user: dict = Depends(_admin_dep),
+) -> dict:
+    dynamodb.put_setting(
+        "proxy",
+        enabled=body.enabled,
+        upstreamUrl=body.upstream_url or "https://clawhub.ai",
+    )
+    return {
+        "enabled": body.enabled,
+        "upstreamUrl": body.upstream_url or "https://clawhub.ai",
+    }

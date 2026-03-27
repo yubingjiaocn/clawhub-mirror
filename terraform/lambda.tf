@@ -46,8 +46,10 @@ module "lambda" {
         "s3:PutObject",
         "s3:DeleteObject",
         "s3:HeadObject",
+        "s3:ListBucket",
       ]
       resources = [
+        module.s3.s3_bucket_arn,
         "${module.s3.s3_bucket_arn}/*",
       ]
     }

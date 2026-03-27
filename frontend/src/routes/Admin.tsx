@@ -7,8 +7,11 @@ import {
   createPolicy,
   deletePolicy,
   whoami,
+  getProxySettings,
+  updateProxySettings,
   type UserSchema,
   type AdmissionPolicy,
+  type ProxySettings,
 } from "../lib/api";
 
 export function Admin() {
@@ -24,6 +27,9 @@ export function Admin() {
   const [newRole, setNewRole] = useState("reader");
   const [newPolicySlug, setNewPolicySlug] = useState("");
   const [newPolicyType, setNewPolicyType] = useState("allow");
+  const [proxyEnabled, setProxyEnabled] = useState(false);
+  const [proxyUrl, setProxyUrl] = useState("https://clawhub.ai");
+  const [proxyToggling, setProxyToggling] = useState(false);
 
   useEffect(() => {
     const token = localStorage.getItem("clawhub-token");
@@ -37,7 +43,7 @@ export function Admin() {
       .then((me) => {
         if (me.role === "admin") {
           setIsAdmin(true);
-          return Promise.all([listUsers(), listPolicies()]);
+          return Promise.all([listUsers(), listPolicies(), getProxySettings()]);
         }
         return null;
       })
@@ -45,6 +51,8 @@ export function Admin() {
         if (result) {
           setUsers(result[0]);
           setPolicies(result[1].policies);
+          setProxyEnabled(result[2].enabled);
+          setProxyUrl(result[2].upstreamUrl);
         }
       })
       .catch((err) => setError(err instanceof Error ? err.message : "Failed to load"))
@@ -100,6 +108,19 @@ export function Admin() {
     }
   };
 
+  const handleToggleProxy = async () => {
+    setProxyToggling(true);
+    try {
+      const result = await updateProxySettings({ enabled: !proxyEnabled });
+      setProxyEnabled(result.enabled);
+      setProxyUrl(result.upstreamUrl);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Failed to update proxy settings");
+    } finally {
+      setProxyToggling(false);
+    }
+  };
+
   if (!checked) return null;
 
   if (!isAdmin) {
@@ -125,6 +146,40 @@ export function Admin() {
     <main className="section">
       <h1 className="section-title">Admin Dashboard</h1>
       {error && <div className="error" style={{ marginBottom: 16 }}>{error}</div>}
+
+      {/* Public ClawHub Proxy */}
+      <section style={{ marginBottom: 40 }}>
+        <h2 className="section-title" style={{ fontSize: "1.3rem" }}>Public ClawHub Proxy</h2>
+        <div className="card" style={{ padding: "20px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "16px", flexWrap: "wrap" }}>
+          <div>
+            <div style={{ marginBottom: "4px" }}>
+              <strong>Upstream passthrough</strong>
+              <span style={{
+                display: "inline-block", marginLeft: "8px", padding: "2px 8px",
+                borderRadius: "4px", fontSize: "0.75rem", fontWeight: 600,
+                background: proxyEnabled ? "rgba(34,197,94,0.15)" : "rgba(239,68,68,0.15)",
+                color: proxyEnabled ? "#16a34a" : "#dc2626",
+              }}>
+                {proxyEnabled ? "Enabled" : "Disabled"}
+              </span>
+            </div>
+            <div style={{ fontSize: "0.85rem", color: "var(--ink-soft)" }}>
+              When enabled, skills not found locally are fetched from the public ClawHub registry and cached.
+            </div>
+            <div style={{ fontSize: "0.8rem", color: "var(--ink-soft)", marginTop: "4px" }}>
+              Upstream: <code>{proxyUrl}</code>
+            </div>
+          </div>
+          <button
+            className={proxyEnabled ? "btn btn-danger" : "btn btn-primary"}
+            onClick={handleToggleProxy}
+            disabled={proxyToggling}
+            style={{ whiteSpace: "nowrap" }}
+          >
+            {proxyToggling ? "Updating..." : proxyEnabled ? "Disable Proxy" : "Enable Proxy"}
+          </button>
+        </div>
+      </section>
 
       {/* User Management */}
       <section style={{ marginBottom: 40 }}>
