@@ -125,3 +125,66 @@ def test_publish_duplicate_version_returns_409(client, publisher_token):
 def test_invalid_slug_returns_400(client, publisher_token):
     resp = _publish(client, publisher_token, slug="INVALID SLUG!")
     assert resp.status_code == 400
+
+
+def test_resolve_nonexistent_returns_404(client, publisher_token):
+    resp = client.get(
+        "/api/v1/resolve",
+        params={"slug": "nonexistent"},
+        headers=auth_header(publisher_token),
+    )
+    assert resp.status_code == 404
+
+
+def test_download_nonexistent_returns_404(client, publisher_token):
+    resp = client.get(
+        "/api/v1/download",
+        params={"slug": "nonexistent", "version": "1.0.0"},
+        headers=auth_header(publisher_token),
+    )
+    assert resp.status_code == 404
+
+
+def test_get_nonexistent_skill_returns_404(client, publisher_token):
+    resp = client.get("/api/v1/skills/nonexistent", headers=auth_header(publisher_token))
+    assert resp.status_code == 404
+
+
+def test_get_nonexistent_versions_returns_404(client, publisher_token):
+    resp = client.get("/api/v1/skills/nonexistent/versions", headers=auth_header(publisher_token))
+    assert resp.status_code == 404
+
+
+def test_search_empty_query_returns_all(client, publisher_token):
+    _publish(client, publisher_token)
+    resp = client.get(
+        "/api/v1/search",
+        params={"q": ""},
+        headers=auth_header(publisher_token),
+    )
+    assert resp.status_code == 200
+    assert len(resp.json()["results"]) >= 1
+
+
+def test_reader_cannot_publish(client, admin_token):
+    from app.auth import generate_api_token, hash_password
+    from app import dynamodb
+
+    token = generate_api_token()
+    dynamodb.put_user(
+        username="testreader",
+        hashed_password=hash_password("readerpass"),
+        role="reader",
+        api_token=token,
+    )
+    resp = _publish(client, token)
+    assert resp.status_code == 403
+
+
+def test_publish_updates_existing_skill(client, publisher_token):
+    _publish(client, publisher_token, version="1.0.0", summary="Original")
+    _publish(client, publisher_token, version="2.0.0", summary="Updated")
+    resp = client.get("/api/v1/skills/my-skill", headers=auth_header(publisher_token))
+    assert resp.status_code == 200
+    assert resp.json()["skill"]["summary"] == "Updated"
+    assert resp.json()["latestVersion"]["version"] == "2.0.0"
