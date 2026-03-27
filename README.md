@@ -83,35 +83,30 @@ aws cloudfront create-invalidation \
   --paths "/*"
 ```
 
-### 3. Seed Admin User
+### 3. Admin User
+
+An admin user is **automatically seeded** on first deploy via Terraform.
+
+Default credentials:
+
+| | Value |
+|---|---|
+| Username | `admin` (configurable via `admin_username` variable) |
+| Password | `changeme123` (configurable via `admin_password` variable) |
+
+To customize:
 
 ```bash
-# Replace values from terraform output
-python3 -c "
-import boto3, bcrypt, secrets, time
-ddb = boto3.resource('dynamodb', region_name='<region>')
-table = ddb.Table('<dynamodb_table_name>')
-
-password = 'your-secure-password'
-hashed = bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
-token = secrets.token_urlsafe(32)
-
-table.put_item(Item={
-    'PK': 'USER#admin', 'SK': 'PROFILE',
-    'username': 'admin',
-    'hashedPassword': hashed,
-    'role': 'admin',
-    'apiToken': token,
-    'isActive': True,
-    'createdAt': int(time.time() * 1000),
-    'GSI3PK': f'TOKEN#{token}',
-    'GSI3SK': 'TOKEN',
-})
-print(f'Admin created. Password: {password}')
-"
+terraform apply -var="admin_password=your-secure-password"
 ```
 
-Or sign up from the web UI -- the first user can then be promoted to admin via DynamoDB.
+To view the password after deploy:
+
+```bash
+terraform output -raw admin_password
+```
+
+**Change the default password after first login** via the Admin dashboard (create a new admin user, then deactivate the default one).
 
 ### 4. Verify
 
@@ -176,6 +171,8 @@ curl "$API_URL/api/v1/admin/settings/proxy" \
 | `project_name` | `clawhub` | Resource name prefix |
 | `region` | `us-west-2` | AWS region |
 | `environment` | `dev` | Environment tag (dev/staging/prod) |
+| `admin_username` | `admin` | Default admin username (seeded on first deploy) |
+| `admin_password` | `changeme123` | Default admin password (sensitive, change after first login) |
 
 ### Multi-Region / Multi-Environment
 

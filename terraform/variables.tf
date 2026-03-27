@@ -15,3 +15,16 @@ variable "environment" {
   type        = string
   default     = "dev"
 }
+
+variable "admin_username" {
+  description = "Default admin username (seeded on first deploy)"
+  type        = string
+  default     = "admin"
+}
+
+variable "admin_password" {
+  description = "Default admin password (seeded on first deploy). Change after first login."
+  type        = string
+  default     = "changeme123"
+  sensitive   = true
+}

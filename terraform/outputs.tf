@@ -32,3 +32,14 @@ output "frontend_bucket_name" {
   description = "S3 bucket name for frontend assets"
   value       = module.frontend.s3_bucket_id
 }
+
+output "admin_username" {
+  description = "Default admin username"
+  value       = var.admin_username
+}
+
+output "admin_password" {
+  description = "Default admin password (change after first login)"
+  value       = var.admin_password
+  sensitive   = true
+}
