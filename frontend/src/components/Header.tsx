@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { applyTheme, useThemeMode } from "../lib/theme";
-import { whoami, login, logout } from "../lib/api";
+import { whoami, login, logout, register } from "../lib/api";
 
 export default function Header() {
   const { mode: themeMode, setMode: setThemeMode } = useThemeMode();
@@ -10,6 +10,7 @@ export default function Header() {
   const [loading, setLoading] = useState(true);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [loginOpen, setLoginOpen] = useState(false);
+  const [authMode, setAuthMode] = useState<"login" | "register">("login");
   const [loginUsername, setLoginUsername] = useState("");
   const [loginPassword, setLoginPassword] = useState("");
   const [loginError, setLoginError] = useState("");
@@ -59,15 +60,16 @@ export default function Header() {
     setLoginError("");
     setLoginLoading(true);
     try {
-      const resp = await login(loginUsername, loginPassword);
+      const action = authMode === "register" ? register : login;
+      const resp = await action(loginUsername, loginPassword);
       localStorage.setItem("clawhub-token", resp.token);
       setUser({ username: resp.username, role: resp.role });
       setLoginOpen(false);
       setLoginUsername("");
       setLoginPassword("");
+      setAuthMode("login");
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Login failed";
-      // Try to parse JSON error detail
+      const msg = err instanceof Error ? err.message : "Failed";
       try {
         const parsed = JSON.parse(msg);
         setLoginError(parsed.detail || msg);
@@ -251,7 +253,9 @@ export default function Header() {
               boxShadow: "0 8px 32px rgba(0,0,0,0.2)",
             }}
           >
-            <h2 style={{ margin: "0 0 24px", fontSize: "1.25rem" }}>Sign in to ClawHub</h2>
+            <h2 style={{ margin: "0 0 24px", fontSize: "1.25rem" }}>
+              {authMode === "login" ? "Sign in to ClawHub" : "Create an account"}
+            </h2>
             <form onSubmit={handleLogin}>
               <div style={{ marginBottom: "16px" }}>
                 <label htmlFor="login-username" style={{ display: "block", marginBottom: "6px", fontSize: "0.875rem", fontWeight: 500 }}>
@@ -310,10 +314,29 @@ export default function Header() {
                   Cancel
                 </button>
                 <button type="submit" className="btn btn-primary" disabled={loginLoading}>
-                  {loginLoading ? "Signing in..." : "Sign in"}
+                  {loginLoading
+                    ? (authMode === "register" ? "Creating account..." : "Signing in...")
+                    : (authMode === "register" ? "Sign up" : "Sign in")}
                 </button>
               </div>
             </form>
+            <div style={{ marginTop: "16px", textAlign: "center", fontSize: "0.875rem", color: "var(--muted)" }}>
+              {authMode === "login" ? (
+                <>Don't have an account?{" "}
+                  <button type="button" onClick={() => { setAuthMode("register"); setLoginError(""); }}
+                    style={{ background: "none", border: "none", color: "var(--accent, #3b82f6)", cursor: "pointer", padding: 0, fontSize: "inherit", textDecoration: "underline" }}>
+                    Sign up
+                  </button>
+                </>
+              ) : (
+                <>Already have an account?{" "}
+                  <button type="button" onClick={() => { setAuthMode("login"); setLoginError(""); }}
+                    style={{ background: "none", border: "none", color: "var(--accent, #3b82f6)", cursor: "pointer", padding: 0, fontSize: "inherit", textDecoration: "underline" }}>
+                    Sign in
+                  </button>
+                </>
+              )}
+            </div>
           </div>
         </div>
       )}

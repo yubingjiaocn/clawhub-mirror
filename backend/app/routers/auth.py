@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel
 
 from .. import dynamodb
-from ..auth import verify_password, generate_api_token, get_current_user
+from ..auth import verify_password, hash_password, generate_api_token, get_current_user
 
 router = APIRouter(prefix="/api/v1/auth", tags=["auth"])
 
@@ -18,6 +18,11 @@ class LoginResponse(BaseModel):
     token: str
     username: str
     role: str
+
+
+class RegisterRequest(BaseModel):
+    username: str
+    password: str
 
 
 class CreateApiKeyRequest(BaseModel):
@@ -65,6 +70,38 @@ async def login(body: LoginRequest) -> LoginResponse:
         token=session_token,
         username=user["username"],
         role=user["role"],
+    )
+
+
+@router.post("/register", response_model=LoginResponse)
+async def register(body: RegisterRequest) -> LoginResponse:
+    username = body.username.strip().lower()
+    if not username or len(username) < 3:
+        raise HTTPException(status_code=400, detail="Username must be at least 3 characters.")
+    if len(body.password) < 6:
+        raise HTTPException(status_code=400, detail="Password must be at least 6 characters.")
+    if not username.replace("-", "").replace("_", "").isalnum():
+        raise HTTPException(status_code=400, detail="Username must be alphanumeric (hyphens and underscores allowed).")
+
+    existing = dynamodb.get_user(username)
+    if existing:
+        raise HTTPException(status_code=409, detail="Username already taken.")
+
+    token = generate_api_token()
+    dynamodb.put_user(
+        username=username,
+        hashed_password=hash_password(body.password),
+        role="reader",
+        api_token=token,
+    )
+
+    session_token = generate_api_token()
+    dynamodb.put_session(username=username, session_token=session_token)
+
+    return LoginResponse(
+        token=session_token,
+        username=username,
+        role="reader",
     )
 
 

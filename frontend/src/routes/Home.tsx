@@ -31,7 +31,7 @@ export function Home() {
         <div className="hero-inner">
           <div className="hero-copy fade-up" data-delay="1">
             <span className="hero-badge">Self-hosted. Enterprise-ready.</span>
-            <h1 className="hero-title">Your private AgentSkill registry, powered by OpenClaw.</h1>
+            <h1 className="hero-title">Your private agent skill registry.</h1>
             <p className="hero-subtitle">
               Publish, version, and install AgentSkills with the standard{" "}
               <code style={{ background: "var(--surface)", padding: "2px 6px", borderRadius: "4px" }}>clawhub</code> CLI.
