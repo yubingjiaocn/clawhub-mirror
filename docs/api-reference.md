@@ -460,6 +460,62 @@ Deactivate a user. Their tokens stop working immediately.
 
 ---
 
+## Admin: Proxy Settings
+
+### GET /admin/settings/proxy
+
+Get the current proxy configuration.
+
+**Auth:** Required (admin role)
+
+**Response (200):**
+
+```json
+{
+  "enabled": false,
+  "upstreamUrl": "https://clawhub.ai"
+}
+```
+
+---
+
+### PUT /admin/settings/proxy
+
+Enable or disable the public ClawHub proxy.
+
+**Auth:** Required (admin role)
+
+**Request:**
+
+```json
+{
+  "enabled": true,
+  "upstream_url": "https://clawhub.ai"
+}
+```
+
+`upstream_url` is optional (defaults to `https://clawhub.ai`).
+
+**Response (200):**
+
+```json
+{
+  "enabled": true,
+  "upstreamUrl": "https://clawhub.ai"
+}
+```
+
+When enabled, the following endpoints will proxy to upstream for skills not found locally:
+- `GET /resolve` -- resolve version from upstream
+- `GET /download` -- download archive from upstream (cached in S3)
+- `GET /search` -- merge local + upstream results
+- `GET /skills/{slug}` -- fetch skill detail from upstream (cached in DynamoDB)
+- `GET /skills/{slug}/versions` -- fetch versions from upstream
+
+Cached skills are marked with `isExternal: true` and remain accessible even after disabling the proxy.
+
+---
+
 ## Admin: Admission Policies
 
 ### GET /admin/policies

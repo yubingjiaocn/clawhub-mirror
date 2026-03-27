@@ -277,6 +277,65 @@ openclaw skills list
 openclaw skills check`)}
       </section>
 
+      {/* --- Proxy --- */}
+      <section style={{ marginBottom: "40px" }}>
+        <h2 style={{ fontSize: "1.25rem", marginBottom: "16px" }}>9. Public ClawHub proxy</h2>
+        <p style={{ marginBottom: "12px" }}>
+          Admins can enable a passthrough proxy to the public{" "}
+          <a href="https://clawhub.ai" target="_blank" rel="noreferrer">ClawHub</a> registry.
+          When enabled, skills not found locally are transparently fetched from upstream and cached.
+        </p>
+
+        <div style={{
+          background: "var(--surface)", border: "1px solid var(--line)",
+          borderRadius: "8px", overflow: "hidden", marginBottom: "16px",
+        }}>
+          <div style={{ padding: "12px 16px", borderBottom: "1px solid var(--line)" }}>
+            <strong style={{ fontSize: "0.9rem" }}>How to enable</strong>
+          </div>
+          <div style={{ padding: "12px 16px", fontSize: "0.9rem" }}>
+            Go to <a href="/admin" style={{ textDecoration: "underline" }}>Admin Dashboard</a> and toggle
+            the <strong>Public ClawHub Proxy</strong> switch. Or use the API:
+          </div>
+        </div>
+
+        {codeBlock(`curl -X PUT ${siteUrl}/api/v1/admin/settings/proxy \\
+  -H "Authorization: Bearer <admin-token>" \\
+  -H "Content-Type: application/json" \\
+  -d '{"enabled": true}'`)}
+
+        <table style={{ width: "100%", marginTop: "16px", fontSize: "0.85rem", borderCollapse: "collapse" }}>
+          <thead>
+            <tr style={{ textAlign: "left", borderBottom: "2px solid var(--line)" }}>
+              <th style={{ padding: "8px 0" }}>Scenario</th>
+              <th style={{ padding: "8px 0" }}>Proxy off</th>
+              <th style={{ padding: "8px 0" }}>Proxy on</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr style={{ borderBottom: "1px solid var(--line)" }}>
+              <td style={{ padding: "8px 0" }}>Search</td>
+              <td style={{ padding: "8px 0" }}>Local only</td>
+              <td style={{ padding: "8px 0" }}>Local + upstream (merged)</td>
+            </tr>
+            <tr style={{ borderBottom: "1px solid var(--line)" }}>
+              <td style={{ padding: "8px 0" }}>Install (local skill)</td>
+              <td style={{ padding: "8px 0" }}>From cache</td>
+              <td style={{ padding: "8px 0" }}>From cache</td>
+            </tr>
+            <tr style={{ borderBottom: "1px solid var(--line)" }}>
+              <td style={{ padding: "8px 0" }}>Install (upstream skill)</td>
+              <td style={{ padding: "8px 0" }}>404</td>
+              <td style={{ padding: "8px 0" }}>Fetched + cached</td>
+            </tr>
+            <tr>
+              <td style={{ padding: "8px 0" }}>After disabling</td>
+              <td colSpan={2} style={{ padding: "8px 0" }}>Cached skills remain accessible</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
       {/* --- Troubleshooting --- */}
       <section style={{ marginBottom: "20px" }}>
         <h2 style={{ fontSize: "1.25rem", marginBottom: "16px" }}>Troubleshooting</h2>
@@ -307,8 +366,9 @@ openclaw skills check`)}
           }}>
             <strong style={{ fontSize: "0.9rem" }}>Search returns no results</strong>
             <p style={{ margin: "8px 0 0", fontSize: "0.85rem", color: "var(--muted)" }}>
-              This is a private registry. Skills must be published here first.
-              They are not mirrored from the public ClawHub registry automatically.
+              This is a private registry. Skills must be published here first,
+              or an admin must enable the <strong>Public ClawHub Proxy</strong> to
+              search upstream skills (see section 9).
             </p>
           </div>
         </div>

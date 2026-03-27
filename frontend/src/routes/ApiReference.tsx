@@ -299,6 +299,27 @@ file: skill.zip`}</Block>
       <SectionBlock id="admin" title="Admin">
         <p style={{ color: "var(--muted)", fontSize: "0.9rem", marginBottom: "20px" }}>All admin endpoints require <strong>admin</strong> role.</p>
 
+        <EndpointDetail method="GET" path="/admin/settings/proxy" auth="Admin" desc="Get proxy configuration.">
+          <Block title="Response 200">{`{
+  "enabled": false,
+  "upstreamUrl": "https://clawhub.ai"
+}`}</Block>
+        </EndpointDetail>
+
+        <EndpointDetail method="PUT" path="/admin/settings/proxy" auth="Admin" desc="Enable or disable the public ClawHub proxy.">
+          <Block title="Request">{`{
+  "enabled": true,
+  "upstream_url": "https://clawhub.ai"
+}`}</Block>
+          <Block title="Response 200">{`{
+  "enabled": true,
+  "upstreamUrl": "https://clawhub.ai"
+}`}</Block>
+          <p style={{ fontSize: "0.85rem", color: "var(--muted)", marginBottom: "12px" }}>
+            When enabled, resolve/download/search/detail endpoints proxy to upstream for skills not found locally. Cached skills remain accessible after disabling.
+          </p>
+        </EndpointDetail>
+
         <EndpointDetail method="POST" path="/admin/users" auth="Admin" desc="Create a new user.">
           <Block title="Request">{`{
   "username": "publisher1",

@@ -123,6 +123,50 @@ curl https://<cloudfront_domain>/healthz
 open https://<cloudfront_domain>
 ```
 
+## Public ClawHub Proxy
+
+The registry can optionally proxy requests to the public [ClawHub](https://clawhub.ai) registry. When enabled, skills not found locally are transparently fetched from upstream and cached in DynamoDB + S3.
+
+### Enable/Disable
+
+Toggle from the **Admin Dashboard** (web UI) or via the API:
+
+```bash
+# Enable proxy
+curl -X PUT "$API_URL/api/v1/admin/settings/proxy" \
+  -H "Authorization: Bearer <admin-token>" \
+  -H "Content-Type: application/json" \
+  -d '{"enabled": true}'
+
+# Disable proxy
+curl -X PUT "$API_URL/api/v1/admin/settings/proxy" \
+  -H "Authorization: Bearer <admin-token>" \
+  -H "Content-Type: application/json" \
+  -d '{"enabled": false}'
+
+# Check status
+curl "$API_URL/api/v1/admin/settings/proxy" \
+  -H "Authorization: Bearer <admin-token>"
+```
+
+### Behavior
+
+| Scenario | Proxy Disabled | Proxy Enabled |
+|----------|---------------|---------------|
+| Search | Local results only | Local + upstream results (merged, deduped) |
+| Install (local skill) | Served from DynamoDB/S3 | Same |
+| Install (upstream skill) | 404 | Fetched from clawhub.ai, cached, served |
+| Subsequent install | N/A | Served from cache (fast) |
+| Disable after caching | Cached skills still available | -- |
+
+### How Caching Works
+
+- **Metadata**: Stored in DynamoDB with `isExternal=true` and `ownerUsername=__upstream__`
+- **Archives**: Stored in S3 at `skills/{slug}/{version}.zip` on first download
+- **Search**: Upstream results merged in real-time (not cached)
+- **Timeout**: 10s per upstream request (within Lambda's 30s limit)
+- **Failure handling**: Upstream errors are silently ignored; the registry degrades to local-only
+
 ## Terraform Configuration
 
 ### Variables
