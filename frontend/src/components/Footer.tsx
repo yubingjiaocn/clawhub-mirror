@@ -8,6 +8,8 @@ export function Footer() {
             ClawHub Mirror &middot; A self-hosted{" "}
             <a href="https://github.com/openclaw/clawhub" target="_blank" rel="noreferrer">ClawHub</a>{" "}
             registry &middot;{" "}
+            <a href="/guide">Guide</a> &middot;{" "}
+            <a href="/api">API Reference</a> &middot;{" "}
             <a href="https://docs.openclaw.ai/tools/clawhub" target="_blank" rel="noreferrer">CLI Docs</a>
           </div>
         </div>

@@ -27,6 +27,7 @@ export function Guide() {
       <h1 style={{ fontSize: "1.75rem", marginBottom: "8px" }}>Getting Started</h1>
       <p style={{ color: "var(--muted)", marginBottom: "40px" }}>
         How to install, search, publish, and manage AgentSkills with this private registry.
+        See also the <a href="/api" style={{ textDecoration: "underline" }}>API Reference</a>.
       </p>
 
       {/* --- Quick Setup --- */}
