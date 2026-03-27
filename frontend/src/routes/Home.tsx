@@ -35,7 +35,7 @@ export function Home() {
             <p className="hero-subtitle">
               Publish, version, and install AgentSkills with the standard{" "}
               <code style={{ background: "var(--surface)", padding: "2px 6px", borderRadius: "4px" }}>clawhub</code> CLI.
-              Set <code style={{ background: "var(--surface)", padding: "2px 6px", borderRadius: "4px" }}>CLAWHUB_SITE</code> to point at this registry and go.
+              Every command below is copy-paste ready.
             </p>
             <div style={{ display: "flex", gap: 12, marginTop: 20 }}>
               <Link to="/publish" className="btn btn-primary">
@@ -48,7 +48,7 @@ export function Home() {
           </div>
           <div className="hero-card hero-search-card fade-up" data-delay="2">
             <div className="hero-install" style={{ marginTop: 18 }}>
-              <div className="stat">Get started in two commands:</div>
+              <div className="stat">Click any command to copy:</div>
               <InstallCommand slug="my-skill" />
             </div>
           </div>

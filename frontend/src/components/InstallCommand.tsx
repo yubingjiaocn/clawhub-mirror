@@ -1,23 +1,22 @@
 import { useState } from "react";
 
-type Tab = "install" | "publish" | "search" | "setup";
+type Tab = "install" | "publish" | "search";
 
 export function InstallCommand({ slug = "example-skill" }: { slug?: string }) {
   const [tab, setTab] = useState<Tab>("install");
   const siteUrl = window.location.origin;
+  const env = `CLAWHUB_SITE=${siteUrl}`;
 
   const commands: Record<Tab, string> = {
-    install: `clawhub install ${slug}`,
-    publish: `clawhub publish . --slug ${slug} --version 1.0.0`,
-    search: `clawhub search "${slug}"`,
-    setup: `export CLAWHUB_SITE=${siteUrl}`,
+    install: `${env} clawhub install ${slug}`,
+    publish: `${env} clawhub publish . --slug ${slug} --version 1.0.0`,
+    search: `${env} clawhub search "${slug}"`,
   };
 
   const tabs: Array<{ id: Tab; label: string }> = [
     { id: "install", label: "Install" },
     { id: "publish", label: "Publish" },
     { id: "search", label: "Search" },
-    { id: "setup", label: "Setup" },
   ];
 
   const [copied, setCopied] = useState(false);
@@ -30,7 +29,13 @@ export function InstallCommand({ slug = "example-skill" }: { slug?: string }) {
   return (
     <div className="install-switcher">
       <div className="install-switcher-row">
-        <div className="stat">Use the clawhub CLI:</div>
+        <div className="stat">
+          Run with the{" "}
+          <a href="https://docs.openclaw.ai/tools/clawhub" target="_blank" rel="noreferrer" style={{ textDecoration: "underline" }}>
+            clawhub CLI
+          </a>
+          :
+        </div>
         <div className="install-switcher-toggle" role="tablist">
           {tabs.map((t) => (
             <button
