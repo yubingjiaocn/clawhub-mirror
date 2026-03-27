@@ -172,8 +172,65 @@ export async function publishSkill(formData: FormData) {
 
 // --- Auth API functions ---
 
+export type LoginResponse = {
+  token: string;
+  username: string;
+  role: string;
+};
+
+export async function login(username: string, password: string): Promise<LoginResponse> {
+  const res = await fetch(`${API_BASE}/api/v1/auth/login`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ username, password }),
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(text || `${res.status} ${res.statusText}`);
+  }
+  return res.json();
+}
+
+export async function logout(): Promise<void> {
+  const token = getToken();
+  if (token) {
+    await fetch(`${API_BASE}/api/v1/auth/logout`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+    }).catch(() => {});
+  }
+}
+
 export function whoami() {
   return get<WhoamiResponse>("/api/v1/whoami");
+}
+
+// --- API Key Management ---
+
+export type ApiKey = {
+  keyId: string;
+  label: string;
+  tokenPrefix: string;
+  createdAt: number;
+};
+
+export type ApiKeyCreated = {
+  keyId: string;
+  label: string;
+  token: string;
+  createdAt: number;
+};
+
+export function listApiKeys() {
+  return get<ApiKey[]>("/api/v1/auth/keys");
+}
+
+export function createApiKey(label: string = "") {
+  return post<ApiKeyCreated>("/api/v1/auth/keys", { label });
+}
+
+export function revokeApiKey(keyId: string) {
+  return del<{ detail: string }>(`/api/v1/auth/keys/${keyId}`);
 }
 
 // --- Admin API functions ---

@@ -100,7 +100,7 @@ export function SkillDetail() {
 
         {/* Install */}
         <div className="card">
-          <InstallCommand slug={slug} />
+          <InstallCommand slug={slug!} />
         </div>
 
         {/* Tabs */}

@@ -7,6 +7,7 @@ import { SkillDetail } from "./routes/SkillDetail";
 import { Search } from "./routes/Search";
 import { Publish } from "./routes/Publish";
 import { Admin } from "./routes/Admin";
+import { Settings } from "./routes/Settings";
 import "./styles.css";
 
 createRoot(document.getElementById("root")!).render(
@@ -19,6 +20,7 @@ createRoot(document.getElementById("root")!).render(
         <Route path="/search" element={<Search />} />
         <Route path="/publish" element={<Publish />} />
         <Route path="/admin" element={<Admin />} />
+        <Route path="/settings" element={<Settings />} />
       </Route>
     </Routes>
   </BrowserRouter>,

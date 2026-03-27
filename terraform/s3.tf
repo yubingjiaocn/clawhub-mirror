@@ -2,7 +2,7 @@ module "s3" {
   source  = "terraform-aws-modules/s3-bucket/aws"
   version = "~> 5.0"
 
-  bucket = "${local.name}-skills"
+  bucket_prefix = "${local.name}-skills-"
 
   versioning = {
     status = "Enabled"

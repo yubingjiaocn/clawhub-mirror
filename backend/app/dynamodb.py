@@ -191,10 +191,19 @@ def get_user_by_token(token: str) -> dict | None:
     items = resp.get("Items", [])
     if not items:
         return None
-    user = items[0]
-    if not user.get("isActive", True):
+    item = items[0]
+    # If this is an API key item, resolve to the actual user
+    if item.get("SK", "").startswith("APIKEY#"):
+        if item.get("isRevoked", False):
+            return None
+        user = get_user(item["username"])
+        if user and user.get("isActive", True):
+            return user
         return None
-    return user
+    # Direct user profile token
+    if not item.get("isActive", True):
+        return None
+    return item
 
 
 def list_users() -> list[dict]:
@@ -210,6 +219,83 @@ def deactivate_user(username: str) -> bool:
         UpdateExpression="SET isActive = :v",
         ExpressionAttributeValues={":v": False},
     )
+    return True
+
+
+# --- API Keys ---
+
+def put_api_key(username: str, token: str, label: str = "") -> dict:
+    now = _now_ms()
+    # Use first 8 chars as key_id for display/revocation
+    key_id = token[:8]
+    item = {
+        "PK": f"USER#{username}",
+        "SK": f"APIKEY#{key_id}",
+        "username": username,
+        "keyId": key_id,
+        "label": label,
+        "tokenPrefix": token[:12],
+        "createdAt": now,
+        "isRevoked": False,
+        "GSI3PK": f"TOKEN#{token}",
+        "GSI3SK": "TOKEN",
+    }
+    get_table().put_item(Item=item)
+    return item
+
+
+def list_api_keys(username: str) -> list[dict]:
+    resp = get_table().query(
+        KeyConditionExpression=Key("PK").eq(f"USER#{username}") & Key("SK").begins_with("APIKEY#"),
+        ScanIndexForward=False,
+    )
+    return [k for k in resp.get("Items", []) if not k.get("isRevoked", False)]
+
+
+def revoke_api_key(username: str, key_id: str) -> bool:
+    try:
+        get_table().update_item(
+            Key={"PK": f"USER#{username}", "SK": f"APIKEY#{key_id}"},
+            UpdateExpression="SET isRevoked = :v, GSI3PK = :empty, GSI3SK = :empty",
+            ExpressionAttributeValues={":v": True, ":empty": "REVOKED"},
+            ConditionExpression=Attr("PK").exists(),
+        )
+        return True
+    except Exception:
+        return False
+
+
+# --- Sessions ---
+
+def put_session(username: str, session_token: str, ttl_seconds: int = 86400) -> dict:
+    now = _now_ms()
+    expires_at = int(time.time()) + ttl_seconds
+    item = {
+        "PK": f"SESSION#{session_token}",
+        "SK": "META",
+        "username": username,
+        "createdAt": now,
+        "expiresAt": expires_at,
+    }
+    get_table().put_item(Item=item)
+    return item
+
+
+def get_session(session_token: str) -> dict | None:
+    resp = get_table().get_item(
+        Key={"PK": f"SESSION#{session_token}", "SK": "META"}
+    )
+    item = resp.get("Item")
+    if not item:
+        return None
+    if item.get("expiresAt", 0) < int(time.time()):
+        delete_session(session_token)
+        return None
+    return item
+
+
+def delete_session(session_token: str) -> bool:
+    get_table().delete_item(Key={"PK": f"SESSION#{session_token}", "SK": "META"})
     return True
 
 

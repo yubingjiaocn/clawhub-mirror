@@ -44,13 +44,20 @@ def _extract_token(request: Request) -> str:
 
 async def get_current_user(request: Request) -> dict:
     token = _extract_token(request)
+    # Try API token first (user items indexed via GSI3)
     user = dynamodb.get_user_by_token(token)
-    if user is None:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid or revoked API token.",
-        )
-    return user
+    if user is not None:
+        return user
+    # Try session token
+    session = dynamodb.get_session(token)
+    if session is not None:
+        user = dynamodb.get_user(session["username"])
+        if user and user.get("isActive", True):
+            return user
+    raise HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Invalid or expired token.",
+    )
 
 
 def require_role(*roles: str):

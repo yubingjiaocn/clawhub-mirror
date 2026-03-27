@@ -3,15 +3,17 @@ module "lambda" {
   version = "~> 8.0"
 
   function_name = "${local.name}-api"
+  role_name     = "${local.name}-api-${var.region}"
   handler       = "handler.handler"
   runtime       = "python3.12"
   timeout       = 30
   memory_size   = 512
 
+  publish     = true
   source_path = "${path.module}/../backend"
 
   environment_variables = {
-    TABLE_NAME  = module.dynamodb.dynamodb_table_id
+    TABLE_NAME  = aws_dynamodb_table.this.id
     BUCKET_NAME = module.s3.s3_bucket_id
     REGION      = var.region
     ENVIRONMENT = var.environment
@@ -22,6 +24,7 @@ module "lambda" {
     dynamodb = {
       effect = "Allow"
       actions = [
+        "dynamodb:DescribeTable",
         "dynamodb:GetItem",
         "dynamodb:PutItem",
         "dynamodb:UpdateItem",
@@ -32,8 +35,8 @@ module "lambda" {
         "dynamodb:BatchWriteItem",
       ]
       resources = [
-        module.dynamodb.dynamodb_table_arn,
-        "${module.dynamodb.dynamodb_table_arn}/index/*",
+        aws_dynamodb_table.this.arn,
+        "${aws_dynamodb_table.this.arn}/index/*",
       ]
     }
     s3 = {

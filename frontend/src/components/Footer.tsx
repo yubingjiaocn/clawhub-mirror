@@ -5,8 +5,10 @@ export function Footer() {
         <div className="site-footer-divider" aria-hidden="true" />
         <div className="site-footer-row">
           <div className="site-footer-copy">
-            ClawHub Mirror &middot; A self-hosted ClawHub instance &middot;{" "}
-            <a href="https://github.com/anthropics/clawhub-mirror" target="_blank" rel="noreferrer">Open source (MIT)</a>
+            ClawHub Mirror &middot; A self-hosted{" "}
+            <a href="https://github.com/openclaw/clawhub" target="_blank" rel="noreferrer">ClawHub</a>{" "}
+            registry &middot;{" "}
+            <a href="https://docs.openclaw.ai/tools/clawhub" target="_blank" rel="noreferrer">CLI Docs</a>
           </div>
         </div>
       </div>

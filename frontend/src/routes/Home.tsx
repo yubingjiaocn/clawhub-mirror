@@ -30,11 +30,12 @@ export function Home() {
       <section className="hero">
         <div className="hero-inner">
           <div className="hero-copy fade-up" data-delay="1">
-            <span className="hero-badge">Lobster-light. Agent-right.</span>
-            <h1 className="hero-title">ClawHub Mirror, the skill dock for sharp agents.</h1>
+            <span className="hero-badge">Self-hosted. Enterprise-ready.</span>
+            <h1 className="hero-title">Your private AgentSkill registry, powered by OpenClaw.</h1>
             <p className="hero-subtitle">
-              Upload AgentSkills bundles, version them like npm, and make them searchable with
-              vectors. No gatekeeping, just signal.
+              Publish, version, and install AgentSkills with the standard{" "}
+              <code style={{ background: "var(--surface)", padding: "2px 6px", borderRadius: "4px" }}>clawhub</code> CLI.
+              Set <code style={{ background: "var(--surface)", padding: "2px 6px", borderRadius: "4px" }}>CLAWHUB_SITE</code> to point at this registry and go.
             </p>
             <div style={{ display: "flex", gap: 12, marginTop: 20 }}>
               <Link to="/publish" className="btn btn-primary">
@@ -47,16 +48,16 @@ export function Home() {
           </div>
           <div className="hero-card hero-search-card fade-up" data-delay="2">
             <div className="hero-install" style={{ marginTop: 18 }}>
-              <div className="stat">Search skills. Versioned, rollback-ready.</div>
-              <InstallCommand slug="sonoscli" />
+              <div className="stat">Get started in two commands:</div>
+              <InstallCommand slug="my-skill" />
             </div>
           </div>
         </div>
       </section>
 
       <section className="section">
-        <h2 className="section-title">Featured skills</h2>
-        <p className="section-subtitle">Curated signal — highlighted for quick trust.</p>
+        <h2 className="section-title">Recent skills</h2>
+        <p className="section-subtitle">Latest skills published to this registry.</p>
         <div className="grid">
           {loading ? (
             <div className="card"><span className="loading-indicator">Loading skills...</span></div>
