@@ -1,52 +1,81 @@
 import { useState } from "react";
 
-type Tab = "install" | "publish" | "search";
+type Cli = "clawhub" | "openclaw";
+type Action = "install" | "search" | "publish" | "update";
 
 export function InstallCommand({ slug = "example-skill" }: { slug?: string }) {
-  const [tab, setTab] = useState<Tab>("install");
+  const [cli, setCli] = useState<Cli>("clawhub");
+  const [action, setAction] = useState<Action>("install");
   const siteUrl = window.location.origin;
-  const env = `CLAWHUB_SITE=${siteUrl}`;
 
-  const commands: Record<Tab, string> = {
-    install: `${env} clawhub install ${slug}`,
-    publish: `${env} clawhub publish . --slug ${slug} --version 1.0.0`,
-    search: `${env} clawhub search "${slug}"`,
+  const commands: Record<Cli, Record<Action, string>> = {
+    clawhub: {
+      install: `CLAWHUB_SITE=${siteUrl} clawhub install ${slug}`,
+      search: `CLAWHUB_SITE=${siteUrl} clawhub search "${slug}"`,
+      publish: `CLAWHUB_SITE=${siteUrl} clawhub publish . --slug ${slug} --version 1.0.0`,
+      update: `CLAWHUB_SITE=${siteUrl} clawhub update --all`,
+    },
+    openclaw: {
+      install: `openclaw skills install ${slug}`,
+      search: `openclaw skills search "${slug}"`,
+      publish: `CLAWHUB_SITE=${siteUrl} clawhub publish . --slug ${slug} --version 1.0.0`,
+      update: `openclaw skills update --all`,
+    },
   };
 
-  const tabs: Array<{ id: Tab; label: string }> = [
-    { id: "install", label: "Install" },
-    { id: "publish", label: "Publish" },
-    { id: "search", label: "Search" },
-  ];
+  const command = commands[cli][action];
 
   const [copied, setCopied] = useState(false);
   const handleCopy = () => {
-    navigator.clipboard.writeText(commands[tab]);
+    navigator.clipboard.writeText(command);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
 
+  const actions: Array<{ id: Action; label: string }> = [
+    { id: "install", label: "Install" },
+    { id: "search", label: "Search" },
+    { id: "publish", label: "Publish" },
+    { id: "update", label: "Update" },
+  ];
+
   return (
     <div className="install-switcher">
-      <div className="install-switcher-row">
-        <div className="stat">
-          Run with the{" "}
-          <a href="https://docs.openclaw.ai/tools/clawhub" target="_blank" rel="noreferrer" style={{ textDecoration: "underline" }}>
-            clawhub CLI
-          </a>
-          :
+      <div className="install-switcher-row" style={{ flexWrap: "wrap", gap: "8px" }}>
+        <div className="stat" style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+          via{" "}
+          <div className="install-switcher-toggle" role="tablist" style={{ display: "inline-flex" }}>
+            <button
+              type="button"
+              className={`install-switcher-pill ${cli === "clawhub" ? "is-active" : ""}`}
+              role="tab"
+              aria-selected={cli === "clawhub"}
+              onClick={() => setCli("clawhub")}
+            >
+              clawhub
+            </button>
+            <button
+              type="button"
+              className={`install-switcher-pill ${cli === "openclaw" ? "is-active" : ""}`}
+              role="tab"
+              aria-selected={cli === "openclaw"}
+              onClick={() => setCli("openclaw")}
+            >
+              openclaw
+            </button>
+          </div>
         </div>
         <div className="install-switcher-toggle" role="tablist">
-          {tabs.map((t) => (
+          {actions.map((a) => (
             <button
-              key={t.id}
+              key={a.id}
               type="button"
-              className={`install-switcher-pill ${tab === t.id ? "is-active" : ""}`}
+              className={`install-switcher-pill ${action === a.id ? "is-active" : ""}`}
               role="tab"
-              aria-selected={tab === t.id}
-              onClick={() => setTab(t.id)}
+              aria-selected={action === a.id}
+              onClick={() => setAction(a.id)}
             >
-              {t.label}
+              {a.label}
             </button>
           ))}
         </div>
@@ -58,11 +87,18 @@ export function InstallCommand({ slug = "example-skill" }: { slug?: string }) {
         title="Click to copy"
       >
         <pre style={{ margin: 0, flex: 1, whiteSpace: "pre-wrap", wordBreak: "break-all" }}>
-          {commands[tab]}
+          {command}
         </pre>
         <span style={{ fontSize: "0.75rem", opacity: 0.6, flexShrink: 0 }}>
           {copied ? "Copied!" : "Copy"}
         </span>
+      </div>
+      <div style={{ fontSize: "0.75rem", color: "var(--muted)", marginTop: "8px" }}>
+        {cli === "clawhub" ? (
+          <>Install CLI: <code>npm i -g clawhub</code> · <a href="https://docs.openclaw.ai/tools/clawhub" target="_blank" rel="noreferrer" style={{ textDecoration: "underline" }}>Docs</a></>
+        ) : (
+          <>OpenClaw skills subcommand · <a href="https://docs.openclaw.ai/cli#skills" target="_blank" rel="noreferrer" style={{ textDecoration: "underline" }}>Docs</a></>
+        )}
       </div>
     </div>
   );

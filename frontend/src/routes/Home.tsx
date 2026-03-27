@@ -33,8 +33,9 @@ export function Home() {
             <span className="hero-badge">Self-hosted. Enterprise-ready.</span>
             <h1 className="hero-title">Your private agent skill registry.</h1>
             <p className="hero-subtitle">
-              Publish, version, and install AgentSkills with the standard{" "}
-              <code style={{ background: "var(--surface)", padding: "2px 6px", borderRadius: "4px" }}>clawhub</code> CLI.
+              Publish, version, and install AgentSkills with the{" "}
+              <a href="https://docs.openclaw.ai/tools/clawhub" target="_blank" rel="noreferrer" style={{ textDecoration: "underline" }}>clawhub</a> CLI
+              or <a href="https://docs.openclaw.ai/cli#skills" target="_blank" rel="noreferrer" style={{ textDecoration: "underline" }}>openclaw skills</a>.
               Every command below is copy-paste ready.
             </p>
             <div style={{ display: "flex", gap: 12, marginTop: 20 }}>
