@@ -26,6 +26,40 @@ def test_list_users(client, admin_token):
     assert any(u["username"] == "testadmin" for u in users)
 
 
+def test_update_user_role(client, admin_token):
+    # Create a reader user first
+    client.post(
+        "/api/v1/admin/users",
+        json={"username": "promoteme", "password": "pass123", "role": "reader"},
+        headers=auth_header(admin_token),
+    )
+    # Promote to publisher
+    resp = client.patch(
+        "/api/v1/admin/users/promoteme",
+        json={"role": "publisher"},
+        headers=auth_header(admin_token),
+    )
+    assert resp.status_code == 200
+    assert resp.json()["role"] == "publisher"
+
+    # Promote to admin
+    resp = client.patch(
+        "/api/v1/admin/users/promoteme",
+        json={"role": "admin"},
+        headers=auth_header(admin_token),
+    )
+    assert resp.status_code == 200
+    assert resp.json()["role"] == "admin"
+
+    # Invalid role
+    resp = client.patch(
+        "/api/v1/admin/users/promoteme",
+        json={"role": "superadmin"},
+        headers=auth_header(admin_token),
+    )
+    assert resp.status_code == 400
+
+
 def test_deactivate_user(client, admin_token):
     # Create a user first
     client.post(

@@ -132,6 +132,10 @@ class UserCreateRequest(BaseModel):
     role: str = "reader"
 
 
+class UserUpdateRoleRequest(BaseModel):
+    role: str
+
+
 class UserCreateResponse(BaseModel):
     user: UserSchema
     api_token: str = Field(alias="apiToken")

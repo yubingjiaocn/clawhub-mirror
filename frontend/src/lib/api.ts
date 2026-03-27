@@ -26,6 +26,7 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
 // Helper functions
 function get<T>(path: string) { return request<T>("GET", path); }
 function post<T>(path: string, body?: unknown) { return request<T>("POST", path, body); }
+function patch<T>(path: string, body?: unknown) { return request<T>("PATCH", path, body); }
 function del<T>(path: string) { return request<T>("DELETE", path); }
 
 // --- Types matching backend Pydantic schemas ---
@@ -253,6 +254,10 @@ export function createUser(data: { username: string; password: string; role?: st
   return post<UserCreateResponse>("/api/v1/admin/users", data);
 }
 
+export function updateUserRole(username: string, role: string) {
+  return patch<UserSchema>(`/api/v1/admin/users/${username}`, { role });
+}
+
 export function deleteUser(username: string) {
   return del<{ detail: string }>(`/api/v1/admin/users/${username}`);
 }
@@ -263,6 +268,10 @@ export function listPolicies() {
 
 export function createPolicy(data: { slug: string; policy_type?: string; allowed_versions?: string; notes?: string }) {
   return post<AdmissionPolicy>("/api/v1/admin/policies", data);
+}
+
+export function updatePolicy(slug: string, data: { policy_type?: string; allowed_versions?: string; notes?: string }) {
+  return patch<AdmissionPolicy>(`/api/v1/admin/policies/${slug}`, data);
 }
 
 export function deletePolicy(slug: string) {

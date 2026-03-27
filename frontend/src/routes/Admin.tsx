@@ -2,9 +2,11 @@ import { useEffect, useState } from "react";
 import {
   listUsers,
   createUser,
+  updateUserRole,
   deleteUser,
   listPolicies,
   createPolicy,
+  updatePolicy,
   deletePolicy,
   whoami,
   getProxySettings,
@@ -27,6 +29,9 @@ export function Admin() {
   const [newRole, setNewRole] = useState("reader");
   const [newPolicySlug, setNewPolicySlug] = useState("");
   const [newPolicyType, setNewPolicyType] = useState("allow");
+  const [editingPolicy, setEditingPolicy] = useState<string | null>(null);
+  const [editPolicyType, setEditPolicyType] = useState("");
+  const [editPolicyNotes, setEditPolicyNotes] = useState("");
   const [proxyEnabled, setProxyEnabled] = useState(false);
   const [proxyUrl, setProxyUrl] = useState("https://clawhub.ai");
   const [proxyToggling, setProxyToggling] = useState(false);
@@ -76,6 +81,15 @@ export function Admin() {
     }
   };
 
+  const handleChangeRole = async (username: string, newRole: string) => {
+    try {
+      const updated = await updateUserRole(username, newRole);
+      setUsers((prev) => prev.map((u) => u.username === username ? updated : u));
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Failed to update role");
+    }
+  };
+
   const handleDeleteUser = async (username: string) => {
     if (!confirm("Deactivate this user?")) return;
     try {
@@ -95,6 +109,25 @@ export function Admin() {
       setNewPolicySlug("");
     } catch (err) {
       alert(err instanceof Error ? err.message : "Failed to create policy");
+    }
+  };
+
+  const handleEditPolicy = (policy: AdmissionPolicy) => {
+    setEditingPolicy(policy.slug);
+    setEditPolicyType(policy.policyType);
+    setEditPolicyNotes(policy.notes || "");
+  };
+
+  const handleSavePolicy = async (slug: string) => {
+    try {
+      const updated = await updatePolicy(slug, {
+        policy_type: editPolicyType,
+        notes: editPolicyNotes || undefined,
+      });
+      setPolicies((prev) => prev.map((p) => p.slug === slug ? updated : p));
+      setEditingPolicy(null);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Failed to update policy");
     }
   };
 
@@ -216,18 +249,30 @@ export function Admin() {
         </form>
 
         <div className="management-list">
-          {users.map((user) => (
-            <div key={user.username} className="management-item">
+          {users.map((u) => (
+            <div key={u.username} className="management-item">
               <div className="management-item-main">
-                <strong>{user.username}</strong>
+                <strong>{u.username}</strong>
                 <div style={{ fontSize: "0.85rem", color: "var(--ink-soft)" }}>
-                  {user.role} &middot; {user.isActive ? "Active" : "Inactive"} &middot; {new Date(user.createdAt).toLocaleDateString()}
+                  {u.isActive ? "Active" : "Inactive"} &middot; {new Date(u.createdAt).toLocaleDateString()}
                 </div>
               </div>
-              <div className="management-actions">
-                <button className="btn btn-danger btn-sm" onClick={() => handleDeleteUser(user.username)}>
-                  Deactivate
-                </button>
+              <div className="management-actions" style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+                <select
+                  className="form-input"
+                  value={u.role}
+                  onChange={(e) => handleChangeRole(u.username, e.target.value)}
+                  style={{ width: "auto", fontSize: "0.85rem", padding: "4px 8px" }}
+                >
+                  <option value="reader">reader</option>
+                  <option value="publisher">publisher</option>
+                  <option value="admin">admin</option>
+                </select>
+                {u.isActive && (
+                  <button className="btn btn-danger btn-sm" onClick={() => handleDeleteUser(u.username)}>
+                    Deactivate
+                  </button>
+                )}
               </div>
             </div>
           ))}
@@ -264,18 +309,57 @@ export function Admin() {
         <div className="management-list">
           {policies.map((policy) => (
             <div key={policy.id} className="management-item">
-              <div className="management-item-main">
-                <strong>{policy.slug}</strong>
-                <div style={{ fontSize: "0.85rem", color: "var(--ink-soft)" }}>
-                  {policy.policyType} &middot; approved by {policy.approvedBy || "\u2014"}
-                  {policy.notes && ` \u00b7 ${policy.notes}`}
-                </div>
-              </div>
-              <div className="management-actions">
-                <button className="btn btn-danger btn-sm" onClick={() => handleDeletePolicy(policy.slug)}>
-                  Delete
-                </button>
-              </div>
+              {editingPolicy === policy.slug ? (
+                <>
+                  <div className="management-item-main" style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                    <strong>{policy.slug}</strong>
+                    <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", alignItems: "center" }}>
+                      <select
+                        className="form-input"
+                        value={editPolicyType}
+                        onChange={(e) => setEditPolicyType(e.target.value)}
+                        style={{ width: "auto", fontSize: "0.85rem", padding: "4px 8px" }}
+                      >
+                        <option value="allow">Allow</option>
+                        <option value="deny">Deny</option>
+                      </select>
+                      <input
+                        className="form-input"
+                        placeholder="Notes (optional)"
+                        value={editPolicyNotes}
+                        onChange={(e) => setEditPolicyNotes(e.target.value)}
+                        style={{ flex: "1 1 150px", fontSize: "0.85rem", padding: "4px 8px" }}
+                      />
+                    </div>
+                  </div>
+                  <div className="management-actions" style={{ display: "flex", gap: "8px" }}>
+                    <button className="btn btn-primary btn-sm" onClick={() => handleSavePolicy(policy.slug)}>
+                      Save
+                    </button>
+                    <button className="btn btn-sm" onClick={() => setEditingPolicy(null)}>
+                      Cancel
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="management-item-main">
+                    <strong>{policy.slug}</strong>
+                    <div style={{ fontSize: "0.85rem", color: "var(--ink-soft)" }}>
+                      {policy.policyType} &middot; approved by {policy.approvedBy || "\u2014"}
+                      {policy.notes && ` \u00b7 ${policy.notes}`}
+                    </div>
+                  </div>
+                  <div className="management-actions" style={{ display: "flex", gap: "8px" }}>
+                    <button className="btn btn-sm" onClick={() => handleEditPolicy(policy)}>
+                      Edit
+                    </button>
+                    <button className="btn btn-danger btn-sm" onClick={() => handleDeletePolicy(policy.slug)}>
+                      Delete
+                    </button>
+                  </div>
+                </>
+              )}
             </div>
           ))}
           {policies.length === 0 && (

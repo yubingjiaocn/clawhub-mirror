@@ -219,6 +219,17 @@ def list_users() -> list[dict]:
     return resp.get("Items", [])
 
 
+def update_user_role(username: str, role: str) -> dict | None:
+    resp = get_table().update_item(
+        Key={"PK": f"USER#{username}", "SK": "PROFILE"},
+        UpdateExpression="SET #r = :v",
+        ExpressionAttributeNames={"#r": "role"},
+        ExpressionAttributeValues={":v": role},
+        ReturnValues="ALL_NEW",
+    )
+    return resp.get("Attributes")
+
+
 def deactivate_user(username: str) -> bool:
     get_table().update_item(
         Key={"PK": f"USER#{username}", "SK": "PROFILE"},

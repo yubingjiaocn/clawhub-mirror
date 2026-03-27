@@ -15,6 +15,7 @@ from ..schemas import (
     UserCreateRequest,
     UserCreateResponse,
     UserSchema,
+    UserUpdateRoleRequest,
 )
 
 router = APIRouter(prefix="/api/v1/admin", tags=["admin"])
@@ -97,6 +98,31 @@ async def list_users(
         )
         for u in users
     ]
+
+
+@router.patch("/users/{username}", response_model=UserSchema)
+async def update_user_role(
+    username: str,
+    body: UserUpdateRoleRequest,
+    user: dict = Depends(_admin_dep),
+) -> UserSchema:
+    target = dynamodb.get_user(username)
+    if not target:
+        raise HTTPException(status_code=404, detail=f"User not found: {username}")
+
+    if body.role not in ("admin", "publisher", "reader"):
+        raise HTTPException(
+            status_code=400,
+            detail="Role must be admin, publisher, or reader.",
+        )
+
+    updated = dynamodb.update_user_role(username, body.role)
+    return UserSchema(
+        username=updated["username"],
+        role=updated["role"],
+        isActive=updated.get("isActive", True),
+        createdAt=updated.get("createdAt", 0),
+    )
 
 
 @router.delete("/users/{username}", status_code=200)
