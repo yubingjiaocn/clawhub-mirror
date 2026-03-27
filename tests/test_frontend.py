@@ -16,7 +16,7 @@ BASE_URL = os.environ.get(
     "CLAWHUB_FRONTEND_URL", "https://d1gta4s2b4m2k6.cloudfront.net"
 )
 ADMIN_USER = os.environ.get("CLAWHUB_ADMIN_USER", "admin")
-ADMIN_PASS = os.environ.get("CLAWHUB_ADMIN_PASS", "admin123")
+ADMIN_PASS = os.environ.get("CLAWHUB_ADMIN_PASS", "changeme123")
 
 
 @pytest.fixture(scope="session")

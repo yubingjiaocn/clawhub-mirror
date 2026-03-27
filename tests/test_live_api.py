@@ -21,6 +21,8 @@ API_BASE = os.environ.get(
     "https://3z258qsqrf.execute-api.us-west-2.amazonaws.com",
 )
 API_V1 = f"{API_BASE}/api/v1"
+ADMIN_USER = os.environ.get("CLAWHUB_ADMIN_USER", "admin")
+ADMIN_PASS = os.environ.get("CLAWHUB_ADMIN_PASS", "changeme123")
 
 
 # ── helpers ──────────────────────────────────────────────────────────
@@ -43,7 +45,7 @@ def admin_token():
     """Login as admin via username/password, or fall back to env token."""
     # Try login first
     admin_user = os.environ.get("CLAWHUB_ADMIN_USER", "admin")
-    admin_pass = os.environ.get("CLAWHUB_ADMIN_PASS", "admin123")
+    admin_pass = os.environ.get("CLAWHUB_ADMIN_PASS", "changeme123")
     r = requests.post(
         f"{API_V1}/auth/login",
         json={"username": admin_user, "password": admin_pass},
@@ -162,12 +164,12 @@ class TestLoginLogout:
     def test_login_valid_credentials(self):
         r = requests.post(
             f"{API_V1}/auth/login",
-            json={"username": "admin", "password": "admin123"},
+            json={"username": ADMIN_USER, "password": ADMIN_PASS},
         )
         assert r.status_code == 200
         body = r.json()
         assert "token" in body
-        assert body["username"] == "admin"
+        assert body["username"] == ADMIN_USER
         assert body["role"] == "admin"
 
     def test_login_invalid_password(self):
@@ -187,7 +189,7 @@ class TestLoginLogout:
     def test_session_token_works_for_api(self):
         r = requests.post(
             f"{API_V1}/auth/login",
-            json={"username": "admin", "password": "admin123"},
+            json={"username": ADMIN_USER, "password": ADMIN_PASS},
         )
         token = r.json()["token"]
         # Use session token to call a protected endpoint
@@ -200,7 +202,7 @@ class TestLoginLogout:
         # Login
         r = requests.post(
             f"{API_V1}/auth/login",
-            json={"username": "admin", "password": "admin123"},
+            json={"username": ADMIN_USER, "password": ADMIN_PASS},
         )
         token = r.json()["token"]
         # Logout
@@ -223,11 +225,11 @@ class TestLoginLogout:
         """Each login creates a separate session token."""
         r1 = requests.post(
             f"{API_V1}/auth/login",
-            json={"username": "admin", "password": "admin123"},
+            json={"username": ADMIN_USER, "password": ADMIN_PASS},
         )
         r2 = requests.post(
             f"{API_V1}/auth/login",
-            json={"username": "admin", "password": "admin123"},
+            json={"username": ADMIN_USER, "password": ADMIN_PASS},
         )
         assert r1.json()["token"] != r2.json()["token"]
 
@@ -295,7 +297,7 @@ class TestApiKeyManagement:
             headers={"Authorization": f"Bearer {token}"},
         )
         assert r2.status_code == 200
-        assert r2.json()["username"] == "admin"
+        assert r2.json()["username"] == ADMIN_USER
 
     def test_revoke_api_key(self, admin_headers):
         # Create a key
