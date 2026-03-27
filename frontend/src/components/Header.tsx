@@ -102,6 +102,7 @@ export default function Header() {
           <nav className="nav-links">
             <Link to="/skills">Skills</Link>
             <Link to="/search">Search</Link>
+            <Link to="/guide">Guide</Link>
           </nav>
 
           <div className="nav-actions">
@@ -219,6 +220,7 @@ export default function Header() {
           }}>
             <Link to="/skills" onClick={() => setMobileMenuOpen(false)}>Skills</Link>
             <Link to="/search" onClick={() => setMobileMenuOpen(false)}>Search</Link>
+            <Link to="/guide" onClick={() => setMobileMenuOpen(false)}>Guide</Link>
             {user ? (
               <button type="button" className="btn" onClick={handleSignOut}>Sign out</button>
             ) : (
